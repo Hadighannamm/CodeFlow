@@ -2,12 +2,17 @@ import { useState } from 'react'
 import { Search } from 'lucide-react'
 import type { Question } from '../types/Question'
 import QuestionCard from '../components/dataDisplay/QuestionCard'
+import '../styles/pages/ExplorePage.css'
 
 export default function ExplorePage() {
   const [questions, _setQuestions] = useState<Question[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState('newest')
   const [isLoading, _setIsLoading] = useState(false)
+
+  const popularTags = ['javascript', 'react', 'python', 'typescript', 'css']
+  const sortOptions = ['newest', 'trending', 'unanswered']
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags((prev) =>
@@ -23,59 +28,65 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Explore Questions</h1>
+    <div className="explore-page-wrapper">
+      <div className="explore-page-header">
+        <h1>Explore Questions</h1>
+      </div>
 
-      {/* Search and Filter */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div className="explore-page-layout">
         {/* Filters Sidebar */}
-        <div className="md:col-span-1">
-          <div className="bg-white border border-gray-200 rounded-lg p-4 sticky top-24">
-            <h3 className="font-semibold text-gray-900 mb-4">Filters</h3>
+        <aside className="explore-page-sidebar">
+          <div className="explore-page-filters">
+            <h3 className="explore-page-filters-title">Filters</h3>
 
             {/* Popular Tags */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-gray-700">Popular Tags</p>
-              {['javascript', 'react', 'python', 'typescript', 'css'].map((tag) => (
-                <label key={tag} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedTags.includes(tag)}
-                    onChange={() => handleTagToggle(tag)}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700 capitalize">{tag}</span>
-                </label>
-              ))}
+            <div className="explore-page-filter-section">
+              <p className="explore-page-filter-label">Popular Tags</p>
+              <div className="explore-page-tag-list">
+                {popularTags.map((tag) => (
+                  <label key={tag} className="explore-page-tag-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedTags.includes(tag)}
+                      onChange={() => handleTagToggle(tag)}
+                    />
+                    <span>{tag}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
-            <hr className="my-4" />
+            <hr className="explore-page-divider" />
 
-            {/* Filter Options */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-gray-700">Sort By</p>
-              {['Newest', 'Trending', 'Unanswered'].map((sort) => (
-                <label key={sort} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="sort"
-                    className="w-4 h-4 rounded-full border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">{sort}</span>
-                </label>
-              ))}
+            {/* Sort Options */}
+            <div className="explore-page-filter-section">
+              <p className="explore-page-filter-label">Sort By</p>
+              <div className="explore-page-sort-list">
+                {sortOptions.map((option) => (
+                  <label key={option} className="explore-page-sort-radio">
+                    <input
+                      type="radio"
+                      name="sort"
+                      value={option}
+                      checked={sortBy === option}
+                      onChange={(e) => setSortBy(e.target.value)}
+                    />
+                    <span>{option.charAt(0).toUpperCase() + option.slice(1)}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Questions */}
-        <div className="md:col-span-3">
-          <div className="mb-6">
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+        {/* Questions Content */}
+        <main className="explore-page-content">
+          <div className="explore-page-search">
+            <form onSubmit={handleSearch} className="explore-page-search-form">
+              <Search className="explore-page-search-icon" size={20} />
               <input
                 type="text"
-                className="input pl-10"
+                className="explore-page-search-input"
                 placeholder="Search questions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -84,22 +95,24 @@ export default function ExplorePage() {
           </div>
 
           {isLoading ? (
-            <div className="text-center">Loading...</div>
+            <div className="explore-page-loading">
+              <p>Loading...</p>
+            </div>
           ) : questions.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <p className="text-gray-500">No questions found</p>
-              <p className="text-sm text-gray-400 mt-2">
+            <div className="explore-page-empty">
+              <p className="explore-page-empty-title">No questions found</p>
+              <p className="explore-page-empty-subtitle">
                 Try adjusting your filters or search terms
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="explore-page-questions">
               {questions.map((question) => (
                 <QuestionCard key={question.id} question={question} />
               ))}
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   )

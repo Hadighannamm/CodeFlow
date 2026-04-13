@@ -1,0 +1,82 @@
+/* AuthPage Styles */
+.auth-page-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--color-primary-orange) 0%, var(--color-primary-orange-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.auth-page-container {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.auth-page-card {
+  background-color: var(--color-off-white);
+  border-radius: 0.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 2rem;
+}
+
+.auth-page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.auth-page-logo {
+  width: 3rem;
+  height: 3rem;
+  background-color: var(--color-primary-orange);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  font-weight: 700;
+  margin: 0 auto 1rem;
+}
+
+.auth-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin: 0;
+}
+
+.auth-page-subtitle {
+  color: var(--color-gray-600);
+  margin-top: 0.5rem;
+}
+
+.auth-page-already-logged {
+  text-align: center;
+  padding: 2rem;
+}
+
+.auth-page-already-logged h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.auth-page-already-logged p {
+  color: var(--color-gray-600);
+  margin-bottom: 1.5rem;
+}
+
+.auth-page-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--color-primary-orange);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.auth-page-btn:hover {
+  background-color: var(--color-primary-orange-dark);
+}

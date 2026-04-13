@@ -4,11 +4,11 @@ import Navigation from './Navigation'
 
 export default function MainLayout() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="main-layout">
       <Header />
-      <div className="flex">
+      <div className="main-layout-content">
         <Navigation />
-        <main className="flex-1">
+        <main className="main-layout-main">
           <Outlet />
         </main>
       </div>

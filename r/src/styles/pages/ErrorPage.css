@@ -1,0 +1,56 @@
+/* ErrorPage and NotFoundPage Styles */
+.error-page-container,
+.not-found-page-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.error-page-content,
+.not-found-page-content {
+  max-width: 28rem;
+}
+
+.error-page-code,
+.not-found-page-code {
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--color-primary-orange);
+  margin: 0;
+}
+
+.error-page-title,
+.not-found-page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  margin: 0.5rem 0 0 0;
+}
+
+.error-page-message,
+.not-found-page-message {
+  color: var(--color-gray-600);
+  margin: 1rem 0 2rem 0;
+  line-height: 1.5;
+}
+
+.error-page-button,
+.not-found-page-button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-primary-orange);
+  color: var(--color-white);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.error-page-button:hover,
+.not-found-page-button:hover {
+  background-color: var(--color-primary-orange-dark);
+}

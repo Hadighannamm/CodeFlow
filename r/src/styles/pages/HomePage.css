@@ -1,0 +1,84 @@
+/* HomePage Styles */
+.home-page-container {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.home-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.home-page-title-section h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin: 0;
+}
+
+.home-page-title-section p {
+  color: var(--color-gray-600);
+  margin-top: 0.5rem;
+}
+
+.home-page-sort-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sort-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sort-button.active {
+  background-color: var(--color-primary-orange);
+  color: var(--color-white);
+}
+
+.sort-button.inactive {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-800);
+}
+
+.sort-button:hover {
+  opacity: 0.8;
+}
+
+.home-page-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.home-page-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.home-page-empty p:first-child {
+  color: var(--color-gray-500);
+  margin-bottom: 1rem;
+}
+
+.home-page-empty p:last-child {
+  color: var(--color-gray-400);
+  font-size: 0.875rem;
+}
+
+.home-page-loading,
+.home-page-error {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.home-page-error {
+  color: var(--color-red-600);
+}

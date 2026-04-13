@@ -1,0 +1,37 @@
+/* EditQuestionPage Styles */
+.edit-question-page-container {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.edit-question-page-intro {
+  margin-bottom: 2rem;
+}
+
+.edit-question-page-intro h1 {
+  font-size: 1.875rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.edit-question-page-intro p {
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+.edit-question-page-loading,
+.edit-question-page-error {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.edit-question-page-error {
+  color: var(--color-red-600);
+}
+
+.edit-question-page-form-container {
+  background-color: var(--color-off-white);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-gray-200);
+  padding: 2rem;
+}

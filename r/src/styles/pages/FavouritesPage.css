@@ -1,0 +1,38 @@
+/* FavouritesPage Styles */
+.favourites-page-container {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.favourites-page-header {
+  margin-bottom: 2rem;
+}
+
+.favourites-page-header h1 {
+  font-size: 1.875rem;
+  margin: 0;
+}
+
+.favourites-page-header p {
+  color: var(--color-gray-600);
+  margin-top: 0.5rem;
+}
+
+.favourites-page-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  background-color: var(--color-off-white);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-gray-200);
+}
+
+.favourites-page-empty p {
+  color: var(--color-gray-500);
+}
+
+.favourites-page-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

@@ -14,14 +14,14 @@ export default function Navigation() {
   const isActive = (path: string) => location.pathname === path
 
   return (
-    <nav className="w-64 bg-white border-r border-gray-200 min-h-screen sticky top-20">
-      <div className="p-4 space-y-2">
-        <Link to="/ask" className="btn-primary w-full flex items-center justify-center gap-2">
+    <nav className="navigation">
+      <div className="navigation-list" style={{ display: 'flex', flexDirection: 'column' }}>
+        <Link to="/ask" className="navigation-ask-button">
           <Plus size={20} />
           Ask Question
         </Link>
 
-        <div className="pt-4 space-y-1">
+        <div style={{ paddingTop: '1rem' }}>
           {links.map((link) => {
             const Icon = link.icon
             return (
@@ -29,23 +29,21 @@ export default function Navigation() {
                 key={link.path}
                 to={link.path}
                 className={clsx(
-                  'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
-                  isActive(link.path)
-                    ? 'bg-blue-50 text-blue-600 font-semibold'
-                    : 'text-gray-700 hover:bg-gray-50'
+                  'navigation-link',
+                  isActive(link.path) && 'active'
                 )}
               >
-                <Icon size={20} />
+                <Icon size={20} style={{ display: 'inline-block', marginRight: '0.75rem' }} />
                 {link.label}
               </Link>
             )
           })}
         </div>
 
-        <hr className="my-4" />
+        <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
 
-        <div className="pt-4">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">
+        <div style={{ paddingTop: '1rem' }}>
+          <h3 style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', paddingLeft: '1.5rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
             Tags
           </h3>
           <Link

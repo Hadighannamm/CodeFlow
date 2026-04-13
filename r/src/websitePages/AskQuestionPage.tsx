@@ -1,27 +1,37 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import QuestionForm from '../components/forms/QuestionForm'
 import type { CreateQuestionInput } from '../types/Question'
+import { questionService } from '../services/questionService'
+import '../styles/pages/AskQuestionPage.css'
 
 export default function AskQuestionPage() {
-  const _navigate = useNavigate()
-  const isLoading = false
+  const navigate = useNavigate()
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (data: CreateQuestionInput) => {
-    // TODO: Call API to create question
-    console.log('Creating question:', data)
-    // navigate(`/question/${newQuestionId}`)
+    setIsLoading(true)
+    try {
+      const newQuestion = await questionService.createQuestion(data)
+      navigate(`/question/${newQuestion.id}`)
+    } catch (error) {
+      console.error('Failed to create question:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Ask a Question</h1>
-        <p className="text-gray-600">
+    <div className="ask-question-page-container">
+      <div className="ask-question-page-intro">
+        <h1>Ask a Question</h1>
+        <p>
           Help the community by sharing your question. Be clear and specific for better answers.
         </p>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
+      <div className="ask-question-page-form-container">
         <QuestionForm
           onSubmit={handleSubmit}
           isLoading={isLoading}
@@ -29,19 +39,19 @@ export default function AskQuestionPage() {
       </div>
 
       {/* Tips Section */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Tips for great questions</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
+      <div className="ask-question-page-tips-grid">
+        <div className="ask-question-tips-box good">
+          <h3>Tips for great questions</h3>
+          <ul>
             <li>• Be specific and clear</li>
             <li>• Include relevant code or error messages</li>
             <li>• Use meaningful tags</li>
             <li>• Proofread before posting</li>
           </ul>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <h3 className="font-semibold text-amber-900 mb-2">What to avoid</h3>
-          <ul className="text-sm text-amber-800 space-y-1">
+        <div className="ask-question-tips-box bad">
+          <h3>What to avoid</h3>
+          <ul>
             <li>• Don't ask for homework help</li>
             <li>• Avoid posting duplicate questions</li>
             <li>• Don't include external links unnecessarily</li>

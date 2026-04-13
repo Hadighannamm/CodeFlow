@@ -1,0 +1,50 @@
+/* AnswerItem Styles */
+.answer-item {
+  border-left: 4px solid;
+  padding-left: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.answer-item.accepted {
+  border-left-color: var(--color-green-600);
+  background-color: var(--color-green-50);
+}
+
+.answer-item.unaccepted {
+  border-left-color: var(--color-gray-300);
+}
+
+.answer-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.answer-item-accepted-badge {
+  color: var(--color-green-600);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.answer-item-content {
+  color: var(--color-gray-800);
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.answer-item-footer {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.answer-item-author {
+  font-weight: 600;
+  color: var(--color-gray-700);
+}

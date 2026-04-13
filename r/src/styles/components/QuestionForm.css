@@ -1,0 +1,126 @@
+/* QuestionForm Styles */
+.question-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.question-form-error {
+  background-color: var(--color-red-50);
+  border: 1px solid var(--color-red-200);
+  color: var(--color-red-800);
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.question-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.question-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.question-form-input,
+.question-form-textarea {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-gray-300);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.question-form-input:focus,
+.question-form-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary-orange);
+  ring: 2px var(--color-primary-orange);
+}
+
+.question-form-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.question-form-hint {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin-top: 0.25rem;
+}
+
+.question-form-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.question-form-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--color-primary-orange-light);
+  color: var(--color-primary-orange);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.question-form-tag-remove {
+  background: none;
+  border: none;
+  color: var(--color-primary-orange);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.question-form-tag-remove:hover {
+  color: var(--color-primary-orange-dark);
+}
+
+.question-form-add-tag {
+  background-color: transparent;
+  color: var(--color-primary-orange);
+  border: 2px solid var(--color-primary-orange);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.question-form-add-tag:hover {
+  background-color: var(--color-primary-orange-light);
+}
+
+.question-form-submit {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-primary-orange);
+  color: var(--color-white);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.question-form-submit:hover {
+  background-color: var(--color-primary-orange-dark);
+}
+
+.question-form-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,124 +1,328 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { User } from 'lucide-react'
+import { useAuth } from '../customHooks/useAuth'
+import { profileService } from '../services/profileService'
 import type { UserProfile } from '../types/UserProfile'
+import '../styles/pages/ProfilePage.css'
 
-// Mock user - will be replaced with auth context
-const mockUser: UserProfile = {
-  id: '1',
-  username: 'johndoe',
-  email: 'john@example.com',
-  reputation: 850,
-  bio: 'Passionate developer and JavaScript enthusiast',
-  avatar: undefined,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+interface UserQuestion {
+  id: string
+  title: string
+  body: string
+  created_at: string
+  updated_at: string
 }
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<UserProfile>(mockUser)
+  const { user: authUser } = useAuth()
+  const [user, setUser] = useState<UserProfile | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [questionsCount, setQuestionsCount] = useState(0)
+  const [answersCount, setAnswersCount] = useState(0)
+  const [userQuestions, setUserQuestions] = useState<UserQuestion[]>([])
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    username: user.username,
-    bio: user.bio,
+    firstName: '',
+    lastName: '',
+    username: '',
+    bio: '',
   })
+
+  // Fetch user profile on component mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!authUser?.id) return
+
+      setIsLoadingProfile(true)
+      setError(null)
+
+      const { data, error: profileError } = await profileService.getUserProfile(authUser.id)
+
+      if (profileError || !data) {
+        setError('Failed to load profile')
+        setIsLoadingProfile(false)
+        return
+      }
+
+      setUser(data)
+      setFormData({
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        username: data.username,
+        bio: data.bio || '',
+      })
+
+      // Fetch counts and questions
+      const qCount = await profileService.getUserQuestionsCount(authUser.id)
+      const aCount = await profileService.getUserAnswersCount(authUser.id)
+      setQuestionsCount(qCount)
+      setAnswersCount(aCount)
+
+      // Fetch recent questions
+      setIsLoadingQuestions(true)
+      const questions = await profileService.getUserQuestions(authUser.id, 5)
+      setUserQuestions(questions)
+      setIsLoadingQuestions(false)
+
+      setIsLoadingProfile(false)
+    }
+
+    fetchProfile()
+  }, [authUser?.id])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !authUser?.id) return
+
+    setIsUploadingAvatar(true)
+    setError(null)
+
+    const { url, error: uploadError } = await profileService.uploadAvatar(authUser.id, file)
+
+    if (uploadError || !url) {
+      setError(`Avatar upload failed: ${uploadError || 'Unknown error'}`)
+      setIsUploadingAvatar(false)
+      return
+    }
+
+    // Update local user state with new avatar
+    if (user) {
+      const updatedUser = { ...user, avatarUrl: url }
+      setUser(updatedUser)
+      console.log('Avatar updated successfully:', url)
+    }
+    setIsUploadingAvatar(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Update user profile via API
-    setUser((prev) => ({
-      ...prev,
+    if (!authUser?.id || !user) return
+
+    setIsSaving(true)
+    setError(null)
+
+    const { data, error: updateError } = await profileService.updateUserProfile(authUser.id, {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
       username: formData.username,
       bio: formData.bio,
-    }))
+    })
+
+    if (updateError || !data) {
+      console.error('Profile update error:', updateError)
+      setError(`Failed to update profile: ${updateError?.message || 'Unknown error'}`)
+      setIsSaving(false)
+      return
+    }
+
+    setUser(data)
+    setFormData({
+      firstName: data.firstName || '',
+      lastName: data.lastName || '',
+      username: data.username,
+      bio: data.bio || '',
+    })
     setIsEditing(false)
+    setError(null)
+    setIsSaving(false)
+  }
+
+  if (isLoadingProfile) {
+    return (
+      <div className="profile-page-container">
+        <div className="profile-page-loading">
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="profile-page-container">
+        <div className="profile-page-loading">
+          <p>Failed to load profile</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Profile Header */}
-      <div className="bg-white border border-gray-200 rounded-lg p-8 mb-8">
-        <div className="flex items-center gap-6 mb-6">
-          <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-            {user.username[0].toUpperCase()}
+    <div className="profile-page-container">
+      {error && (
+        <div className="profile-page-error">
+          {error}
+        </div>
+      )}
+
+      {/* Profile Header Card */}
+      <div className="profile-card">
+        <div className="profile-header">
+          {/* Avatar Section - Left */}
+          <div className="profile-avatar-section">
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.username}
+                className="profile-avatar-image"
+              />
+            ) : (
+              <div className="profile-avatar-default">
+                <User className="profile-avatar-icon" />
+              </div>
+            )}
+            {isEditing && (
+              <label className="profile-avatar-upload">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  disabled={isUploadingAvatar}
+                  style={{ display: 'none' }}
+                />
+                <span>📷</span>
+              </label>
+            )}
+            {isUploadingAvatar && (
+              <div className="profile-avatar-uploading">
+                <span>Uploading...</span>
+              </div>
+            )}
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{user.username}</h1>
-            <p className="text-gray-600">{user.email}</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Member since{' '}
-              {new Date(user.createdAt).toLocaleDateString()}
-            </p>
+
+          {/* User Info - Right */}
+          <div className="profile-info">
+            <div className="profile-info-header">
+              <div className="profile-info-details">
+                <h1>{user.username}</h1>
+                {(user.firstName || user.lastName) && (
+                  <p className="profile-info-name">
+                    {user.firstName} {user.lastName}
+                  </p>
+                )}
+                <p className="profile-info-email">{user.email}</p>
+                <p className="profile-info-member">
+                  Member since {new Date(user.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Edit Button */}
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="profile-edit-button"
+              >
+                Edit Profile
+              </button>
+            )}
           </div>
-          {!isEditing && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="btn-primary ml-auto"
-            >
-              Edit Profile
-            </button>
-          )}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{user.reputation}</div>
-            <div className="text-sm text-gray-500">Reputation</div>
+        <div className="profile-stats">
+          <div className="profile-stat-item">
+            <div className="profile-stat-value reputation">{user.reputation}</div>
+            <div className="profile-stat-label">Reputation</div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">12</div>
-            <div className="text-sm text-gray-500">Questions</div>
+          <div className="profile-stat-item">
+            <div className="profile-stat-value questions">{questionsCount}</div>
+            <div className="profile-stat-label">Questions</div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-amber-600">8</div>
-            <div className="text-sm text-gray-500">Answers</div>
+          <div className="profile-stat-item">
+            <div className="profile-stat-value answers">{answersCount}</div>
+            <div className="profile-stat-label">Answers</div>
           </div>
         </div>
       </div>
 
       {/* Edit Form */}
       {isEditing && (
-        <div className="bg-white border border-gray-200 rounded-lg p-8 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Edit Profile</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <div className="profile-edit-form-container">
+          <h2 className="profile-edit-form-title">Edit Profile</h2>
+          <form onSubmit={handleSubmit} className="profile-edit-form">
+            {/* Name Fields */}
+            <div className="profile-form-row">
+              <div className="profile-form-group">
+                <label className="profile-form-label">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  className="profile-form-input"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder="John"
+                />
+              </div>
+              <div className="profile-form-group">
+                <label className="profile-form-label">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  className="profile-form-input"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
+
+            {/* Username Field */}
+            <div className="profile-form-group">
+              <label className="profile-form-label">
                 Username
               </label>
               <input
                 type="text"
                 name="username"
-                className="input"
+                className="profile-form-input"
                 value={formData.username}
                 onChange={handleChange}
+                required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+            {/* Bio Field */}
+            <div className="profile-form-group">
+              <label className="profile-form-label">
                 Bio
               </label>
               <textarea
                 name="bio"
-                className="textarea h-24"
+                className="profile-form-textarea"
                 value={formData.bio}
                 onChange={handleChange}
                 placeholder="Tell us about yourself..."
               />
             </div>
 
-            <div className="flex gap-2">
-              <button type="submit" className="btn-primary">
-                Save Changes
+            {/* Action Buttons */}
+            <div className="profile-form-actions">
+              <button
+                type="submit"
+                disabled={isSaving || isUploadingAvatar}
+                className="profile-button-submit"
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="btn-secondary"
+                disabled={isSaving || isUploadingAvatar}
+                className="profile-button-cancel"
               >
                 Cancel
               </button>
@@ -128,20 +332,35 @@ export default function ProfilePage() {
       )}
 
       {/* Activity Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="profile-activity-section">
         {/* Recent Questions */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Questions</h3>
-          <div className="space-y-3">
-            <p className="text-gray-500 text-sm">No questions yet</p>
-          </div>
+        <div className="profile-activity-card">
+          <h3 className="profile-activity-title">Recent Questions</h3>
+          {isLoadingQuestions ? (
+            <p className="profile-empty-message">Loading...</p>
+          ) : userQuestions.length > 0 ? (
+            <div className="profile-activity-list">
+              {userQuestions.map((q) => (
+                <div key={q.id} className="profile-question-item">
+                  <h4 className="profile-question-title">
+                    {q.title}
+                  </h4>
+                  <div className="profile-question-meta">
+                    <span>{new Date(q.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="profile-empty-message">No questions yet</p>
+          )}
         </div>
 
         {/* Recent Answers */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Answers</h3>
-          <div className="space-y-3">
-            <p className="text-gray-500 text-sm">No answers yet</p>
+        <div className="profile-activity-card">
+          <h3 className="profile-activity-title">Recent Answers</h3>
+          <div className="profile-activity-list">
+            <p className="profile-empty-message">No answers yet</p>
           </div>
         </div>
       </div>

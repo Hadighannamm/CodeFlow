@@ -5,16 +5,40 @@ import type { Answer } from '../types/Answer'
 import AnswerForm from '../components/forms/AnswerForm'
 import AnswerItem from '../components/dataDisplay/AnswerItem'
 import VoteButton from '../components/dataDisplay/VoteButton'
+import { questionService } from '../services/questionService'
 
 export default function QuestionDetailsPage() {
   const { id } = useParams<{ id: string }>()
-  const [question, _setQuestion] = useState<Question | null>(null)
+  const [question, setQuestion] = useState<Question | null>(null)
   const [answers, _setAnswers] = useState<Answer[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    // TODO: Fetch question and answers from API
-    setIsLoading(false)
+    const fetchQuestion = async () => {
+      if (!id) {
+        setError('Question ID not found')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const fetchedQuestion = await questionService.getQuestionById(id)
+        if (!fetchedQuestion) {
+          setError('Question not found')
+        } else {
+          setQuestion(fetchedQuestion)
+          setError('')
+        }
+      } catch (err) {
+        setError((err as Error).message || 'Failed to load question')
+        console.error('Error fetching question:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchQuestion()
   }, [id])
 
   if (isLoading) {
@@ -25,10 +49,10 @@ export default function QuestionDetailsPage() {
     )
   }
 
-  if (!question) {
+  if (error || !question) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="text-center text-red-600">Question not found</div>
+        <div className="text-center text-red-600">{error || 'Question not found'}</div>
       </div>
     )
   }
@@ -118,7 +142,7 @@ export default function QuestionDetailsPage() {
       {/* Answer Form */}
       <div>
         <h3 className="text-xl font-bold text-gray-900 mb-4">Your Answer</h3>
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-[#f5f5f0] border border-gray-200 rounded-lg p-6">
           <AnswerForm onSubmit={handleAnswerSubmit} />
         </div>
       </div>

@@ -1,0 +1,98 @@
+/* QuestionDetailsPage Styles */
+.question-details-page-container {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.question-details-page-loading,
+.question-details-page-error {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.question-details-page-error {
+  color: var(--color-red-600);
+}
+
+.question-details-page-vote-section {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+}
+
+.question-details-page-main {
+  background-color: var(--color-white);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-gray-200);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.question-details-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin: 0 0 1.5rem 0;
+}
+
+.question-details-page-body {
+  color: var(--color-gray-700);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.question-details-page-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.question-details-page-tag {
+  display: inline-block;
+  background-color: var(--color-primary-orange-light);
+  color: var(--color-primary-orange);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.question-details-page-meta {
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
+  border-top: 1px solid var(--color-gray-200);
+  padding-top: 1rem;
+}
+
+.question-details-page-author {
+  font-weight: 600;
+  color: var(--color-gray-700);
+}
+
+.question-details-page-answers-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-gray-900);
+  margin: 2rem 0 1.5rem 0;
+}
+
+.question-details-page-no-answers {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-gray-500);
+}
+
+.question-details-page-answer-form {
+  background-color: var(--color-off-white);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-gray-200);
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.question-details-page-answer-form h3 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem 0;
+}

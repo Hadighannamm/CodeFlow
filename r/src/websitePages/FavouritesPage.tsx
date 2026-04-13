@@ -16,7 +16,7 @@ export default function FavouritesPage() {
       {isLoading ? (
         <div className="text-center">Loading...</div>
       ) : savedQuestions.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+        <div className="text-center py-12 bg-[#f5f5f0] rounded-lg border border-gray-200">
           <p className="text-gray-500 mb-4">You haven't saved any questions yet</p>
           <p className="text-sm text-gray-400">
             Questions you save will appear here for easy access

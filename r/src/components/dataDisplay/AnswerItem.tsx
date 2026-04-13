@@ -14,7 +14,7 @@ export default function AnswerItem({
   onVote,
 }: AnswerItemProps) {
   return (
-    <div className={clsx('border-l-4 pl-4 py-4', isAccepted ? 'border-green-500 bg-green-50' : 'border-gray-300')}>
+    <div className={clsx('border-l-4 pl-4 py-4', isAccepted ? 'border-[#f97316] bg-[#fed7aa]' : 'border-gray-300')}>
       <div className="flex gap-4">
         {/* Vote Section */}
         <div className="flex flex-col items-center gap-2">
@@ -28,7 +28,7 @@ export default function AnswerItem({
             </>
           )}
           {isAccepted && (
-            <div className="text-green-600 text-xs font-semibold">
+            <div className="text-[#f97316] text-xs font-semibold">
               ✓ Accepted
             </div>
           )}

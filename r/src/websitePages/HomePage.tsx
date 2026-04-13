@@ -1,39 +1,63 @@
 import { useEffect, useState } from 'react'
 import type { Question } from '../types/Question'
 import QuestionCard from '../components/dataDisplay/QuestionCard'
+import { questionService } from '../services/questionService'
+import '../styles/pages/HomePage.css'
 
 export default function HomePage() {
-  const [questions, _setQuestions] = useState<Question[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [sortBy, setSortBy] = useState<'newest' | 'hot' | 'votes'>('newest')
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    // TODO: Fetch questions from API
-    setIsLoading(false)
+    const fetchQuestions = async () => {
+      try {
+        setIsLoading(true)
+        setError('')
+        const fetchedQuestions = await questionService.getAllQuestions(sortBy)
+        setQuestions(fetchedQuestions)
+      } catch (err) {
+        setError((err as Error).message || 'Failed to load questions')
+        console.error('Error fetching questions:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchQuestions()
   }, [sortBy])
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="text-center">Loading questions...</div>
+      <div className="home-page-container">
+        <div className="home-page-loading">Loading questions...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="home-page-container">
+        <div className="home-page-error">{error}</div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="home-page-container">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">All Questions</h1>
-          <p className="text-gray-600 mt-2">{questions.length} questions</p>
+      <div className="home-page-header">
+        <div className="home-page-title-section">
+          <h1>All Questions</h1>
+          <p>{questions.length} questions</p>
         </div>
-        <div className="flex gap-2">
+        <div className="home-page-sort-buttons">
           {(['newest', 'hot', 'votes'] as const).map((sort) => (
             <button
               key={sort}
               onClick={() => setSortBy(sort)}
-              className={sortBy === sort ? 'btn-primary' : 'btn-secondary'}
+              className={sortBy === sort ? 'sort-button active' : 'sort-button inactive'}
             >
               {sort.charAt(0).toUpperCase() + sort.slice(1)}
             </button>
@@ -43,12 +67,12 @@ export default function HomePage() {
 
       {/* Questions List */}
       {questions.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">No questions yet</p>
-          <p className="text-sm text-gray-400">Be the first to ask a question!</p>
+        <div className="home-page-empty">
+          <p>No questions yet</p>
+          <p>Be the first to ask a question!</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="home-page-questions-list">
           {questions.map((question) => (
             <QuestionCard key={question.id} question={question} />
           ))}

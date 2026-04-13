@@ -1,50 +1,88 @@
-import { Link } from 'react-router-dom'
-import { Search, LogOut } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Search, LogOut, User } from 'lucide-react'
+import { useAuth } from '../../customHooks/useAuth'
+import { profileService } from '../../services/profileService'
+import { useState, useEffect } from 'react'
 
 export default function Header() {
-  // TODO: Add auth context for user info and logout
-  const isAuthenticated = false
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const isAuthenticated = !!user
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  // Fetch user avatar when user changes
+  useEffect(() => {
+    if (!user?.id) return
+
+    const fetchAvatar = async () => {
+      const { data } = await profileService.getUserProfile(user.id)
+      if (data?.avatarUrl) {
+        setAvatarUrl(data.avatarUrl)
+      }
+    }
+
+    fetchAvatar()
+  }, [user?.id])
+
+  const handleLogout = async () => {
+    await signOut()
+    navigate('/auth')
+  }
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">
+    <header className="header">
+      <div className="header-container">
+        <Link to="/" className="header-logo-link">
+          <div className="header-logo-icon">
             CF
           </div>
-          <span className="text-xl font-bold text-gray-900">CodeFlow</span>
+          <span className="header-logo-text">CodeFlow</span>
         </Link>
 
-        <div className="flex-1 max-w-md mx-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+        <div className="header-search-container">
+          <div className="header-search-wrapper">
+            <Search className="header-search-icon" size={20} />
             <input
               type="text"
               placeholder="Search questions..."
-              className="input pl-10"
+              className="header-search-input"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="header-actions">
           {isAuthenticated ? (
             <>
-              <Link to="/profile" className="text-gray-600 hover:text-gray-900">
-                Profile
+              <Link
+                to="/profile"
+                className="header-profile-avatar"
+                title={user?.email ?? 'Profile'}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Profile" className="header-avatar-image" />
+                ) : (
+                  <div className="header-avatar-default">
+                    <User size={20} />
+                  </div>
+                )}
               </Link>
-              <button className="text-red-500 hover:text-red-700">
+              <button
+                onClick={handleLogout}
+                className="header-logout-btn"
+                title="Logout"
+              >
                 <LogOut size={20} />
               </button>
             </>
           ) : (
-            <>
-              <Link to="/auth" className="text-gray-600 hover:text-gray-900">
+            <div className="header-auth-links">
+              <Link to="/auth" className="header-auth-link">
                 Login
               </Link>
               <Link to="/auth" className="btn-primary">
                 Sign Up
               </Link>
-            </>
+            </div>
           )}
         </div>
       </div>

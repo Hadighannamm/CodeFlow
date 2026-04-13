@@ -50,7 +50,7 @@ export default function TagsPage() {
             <Link
               key={tag.id}
               to={`/explore?tag=${tag.name}`}
-              className="card hover:border-blue-400"
+              className="card hover:border-[#f97316]"
             >
               <div className="mb-3">
                 <span className="badge-primary text-lg">

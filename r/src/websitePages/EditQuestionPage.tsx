@@ -43,7 +43,7 @@ export default function EditQuestionPage() {
         <p className="text-gray-600">Update your question or add more details</p>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
+      <div className="bg-[#f5f5f0] rounded-lg border border-gray-200 p-8">
         <QuestionForm
           onSubmit={handleSubmit}
           isLoading={isLoading}
