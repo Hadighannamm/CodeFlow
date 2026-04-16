@@ -4,8 +4,8 @@ export type Answer = {
   id: string;
   body: string;
   questionId: string;
+  userId: string;
   author: UserProfile;
-  authorId: string;
   votes: number;
   isAccepted: boolean;
   createdAt: string;
@@ -15,6 +15,7 @@ export type Answer = {
 export type CreateAnswerInput = {
   body: string;
   questionId: string;
+  userId: string;
 };
 
 export type UpdateAnswerInput = {

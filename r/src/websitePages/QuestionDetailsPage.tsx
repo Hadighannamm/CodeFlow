@@ -1,18 +1,36 @@
-import { useParams } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import type { Question } from '../types/Question'
 import type { Answer } from '../types/Answer'
 import AnswerForm from '../components/forms/AnswerForm'
 import AnswerItem from '../components/dataDisplay/AnswerItem'
 import VoteButton from '../components/dataDisplay/VoteButton'
+import PollDisplay from '../components/dataDisplay/PollDisplay'
 import { questionService } from '../services/questionService'
+import { answerService } from '../services/answerService'
+import { voteService } from '../services/voteService'
+import { useAuth } from '../customHooks/useAuth'
+import { supabase } from '../lib/supabaseClient'
 
 export default function QuestionDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [question, setQuestion] = useState<Question | null>(null)
-  const [answers, _setAnswers] = useState<Answer[]>([])
+  const [answers, setAnswers] = useState<Answer[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
+  const [isVoting, setIsVoting] = useState(false)
+  const [voteCount, setVoteCount] = useState(0)
+  const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false)
+  const viewsIncrementedRef = useRef(false)
+
+  // Reset views increment flag when question ID changes
+  useEffect(() => {
+    viewsIncrementedRef.current = false
+  }, [id])
 
   useEffect(() => {
     const fetchQuestion = async () => {
@@ -29,6 +47,46 @@ export default function QuestionDetailsPage() {
         } else {
           setQuestion(fetchedQuestion)
           setError('')
+
+          // Fetch actual vote count from database (same as QuestionCard)
+          const actualVoteCount = await voteService.getVoteCount(id)
+          setVoteCount(actualVoteCount)
+          console.log('Actual vote count from DB:', actualVoteCount)
+
+          // Increment view count only once per page visit
+          if (id && !viewsIncrementedRef.current) {
+            viewsIncrementedRef.current = true
+            try {
+              const { data: question, error: fetchError } = await supabase
+                .from('questions')
+                .select('view_count')
+                .eq('id', id)
+                .single()
+
+              if (!fetchError && question) {
+                const newViewCount = (question.view_count || 0) + 1
+                await supabase
+                  .from('questions')
+                  .update({ view_count: newViewCount })
+                  .eq('id', id)
+                console.log('View count incremented to:', newViewCount)
+              }
+            } catch (err) {
+              console.error('Error incrementing view count:', err)
+            }
+          }
+
+          // Fetch user's vote if logged in
+          if (user) {
+            const userVoteData = await voteService.getUserVote(user.id, id)
+            if (userVoteData) {
+              setUserVote(userVoteData.voteType === 1 ? 'up' : 'down')
+            }
+          }
+
+          // Fetch answers
+          const fetchedAnswers = await answerService.getAnswersByQuestion(id)
+          setAnswers(fetchedAnswers)
         }
       } catch (err) {
         setError((err as Error).message || 'Failed to load question')
@@ -39,7 +97,62 @@ export default function QuestionDetailsPage() {
     }
 
     fetchQuestion()
-  }, [id])
+  }, [id, user])
+
+  const handleVote = async (voteType: 'up' | 'down') => {
+    if (!user) {
+      alert('You must be logged in to vote')
+      return
+    }
+
+    if (!id) return
+
+    setIsVoting(true)
+    try {
+      const voteTypeNum = voteType === 'up' ? 1 : -1
+      const existingVote = await voteService.getUserVote(user.id, id)
+
+      if (existingVote) {
+        // User has already voted
+        if ((existingVote.voteType === 1 && voteType === 'up') || 
+            (existingVote.voteType === -1 && voteType === 'down')) {
+          // Remove the vote (toggle off)
+          await voteService.deleteVote(existingVote.id)
+          setVoteCount(voteCount - existingVote.voteType)
+          setUserVote(null)
+        } else {
+          // Change the vote
+          const oldVote = existingVote.voteType
+          await voteService.updateVote(existingVote.id, voteTypeNum)
+          setVoteCount(voteCount - oldVote + voteTypeNum)
+          setUserVote(voteType)
+        }
+      } else {
+        // Create new vote
+        await voteService.createVote({
+          userId: user.id,
+          targetId: id,
+          targetType: 'question',
+          voteType: voteTypeNum,
+        })
+        setVoteCount(voteCount + voteTypeNum)
+        setUserVote(voteType)
+      }
+
+      // Update the question's vote count in state
+      if (question) {
+        setQuestion({
+          ...question,
+          votes: voteCount + (voteTypeNum - (userVote === 'up' ? 1 : userVote === 'down' ? -1 : 0)),
+        })
+      }
+    } catch (err) {
+      console.error('Error voting:', err)
+      alert('Failed to record vote. Please try again.')
+    } finally {
+      setIsVoting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -58,28 +171,97 @@ export default function QuestionDetailsPage() {
   }
 
   const handleAnswerSubmit = async (body: string) => {
-    // TODO: Create answer via API
-    console.log('Submitting answer:', body)
-  }
+    if (!user || !id) {
+      alert('You must be logged in to answer')
+      return
+    }
 
-  const handleVote = async (voteType: 'up' | 'down') => {
-    // TODO: Vote on question
-    console.log('Voting:', voteType)
+    setIsSubmittingAnswer(true)
+    setError('')
+
+    try {
+      const newAnswer = await answerService.createAnswer({
+        body,
+        questionId: id,
+        userId: user.id,
+      })
+
+      // Add the new answer to the list
+      setAnswers((prev) => [...prev, newAnswer])
+
+      // Update the question's answer count
+      if (question) {
+        setQuestion({
+          ...question,
+          answerCount: question.answerCount + 1,
+        })
+      }
+    } catch (err) {
+      console.error('Error submitting answer:', err)
+      setError(`Failed to submit answer: ${(err as Error).message || 'Unknown error'}`)
+    } finally {
+      setIsSubmittingAnswer(false)
+    }
   }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        style={{
+          display: 'flex',
+          
+          gap: '5px',
+          backgroundColor: '#f97316',
+          color: 'white',
+          padding: '8px 20px',
+          borderRadius: '8px',
+          border: 'none',
+          marginBottom: '30px',
+          fontSize: '18px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          transition: 'background-color 0.2s',
+          
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#ea580c')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f97316')}
+      >
+        <ChevronLeft size={25} style={{ flexShrink: 0, marginLeft: '-8px' }} />
+        Back
+      </button>
+
       {/* Question */}
-      <div className="mb-8">
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          border: '1px solid #e5e7eb',
+          borderRadius: '0.5rem',
+          padding: '1.5rem',
+          marginBottom: '2rem',
+        }}
+      >
         <div className="flex gap-4">
           {/* Vote Section */}
           <div className="flex flex-col items-center gap-2">
             <VoteButton
               voteType="up"
-              count={question.votes}
-              onVote={handleVote}
+              count={voteCount}
+              onVote={() => handleVote('up')}
+              userVote={userVote}
+              isLoading={isVoting}
             />
-            <div className="text-sm text-gray-600">{question.answerCount} answers</div>
+            <div style={{ marginLeft:'12px'}}>
+            <VoteButton
+              voteType="down"
+              count={0}
+              onVote={() => handleVote('down')}
+              userVote={userVote}
+              isLoading={isVoting}
+            />
+            </div>
+            
           </div>
 
           {/* Question Content */}
@@ -100,6 +282,11 @@ export default function QuestionDetailsPage() {
                 </span>
               ))}
             </div>
+
+            {/* Poll */}
+            {question.poll && (
+              <PollDisplay poll={question.poll} />
+            )}
 
             {/* Meta */}
             <div className="text-sm text-gray-500 border-t border-gray-200 pt-4">
@@ -143,9 +330,15 @@ export default function QuestionDetailsPage() {
       <div>
         <h3 className="text-xl font-bold text-gray-900 mb-4">Your Answer</h3>
         <div className="bg-[#f5f5f0] border border-gray-200 rounded-lg p-6">
-          <AnswerForm onSubmit={handleAnswerSubmit} />
+          <AnswerForm onSubmit={handleAnswerSubmit} isLoading={isSubmittingAnswer} />
         </div>
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   )
 }
+

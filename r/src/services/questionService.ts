@@ -1,8 +1,9 @@
 import type { Question, CreateQuestionInput, UpdateQuestionInput } from '../types/Question'
 import { supabase } from '../lib/supabaseClient'
+import { pollService } from './pollService'
 
 export const questionService = {
-  async getAllQuestions(sortBy: 'newest' | 'hot' | 'votes' = 'newest'): Promise<Question[]> {
+  async getAllQuestions(sortBy: 'newest' | 'most-viewed' | 'most-liked' = 'newest'): Promise<Question[]> {
     console.log('Fetching all questions, sorted by:', sortBy)
     
     let query = supabase
@@ -12,11 +13,10 @@ export const questionService = {
     // Apply sorting
     if (sortBy === 'newest') {
       query = query.order('created_at', { ascending: false })
-    } else if (sortBy === 'hot') {
-      query = query.order('created_at', { ascending: false }).limit(10)
-    } else if (sortBy === 'votes') {
-      query = query.order('votes', { ascending: false })
+    } else if (sortBy === 'most-viewed') {
+      query = query.order('view_count', { ascending: false })
     }
+    // For most-liked, we'll fetch all and sort client-side after calculating votes
 
     const { data: questions, error } = await query
 
@@ -31,6 +31,7 @@ export const questionService = {
     }
 
     console.log(`Found ${questions.length} questions`)
+    console.log('Question data sample:', questions[0])
 
     // Fetch full data for each question in parallel
     const questionsWithData = await Promise.all(
@@ -48,6 +49,15 @@ export const questionService = {
             .from('question_tags')
             .select('tags (*)')
             .eq('question_id', question.id)
+
+          // Fetch vote count for this question
+          const { data: votes } = await supabase
+            .from('votes')
+            .select('vote_type')
+            .eq('target_id', question.id)
+            .eq('target_type', 'question')
+
+          const voteCount = votes ? votes.reduce((sum, vote) => sum + parseInt(vote.vote_type), 0) : 0
 
           const author = user ? {
             id: user.id,
@@ -86,11 +96,12 @@ export const questionService = {
             tags,
             author,
             authorId: question.user_id,
-            votes: question.votes || 0,
+            votes: voteCount,
             answerCount: 0,
             viewCount: question.view_count || 0,
             createdAt: question.created_at,
             updatedAt: question.updated_at,
+            poll: undefined,
           }
         } catch (err) {
           console.error(`Error processing question ${question.id}:`, err)
@@ -99,8 +110,15 @@ export const questionService = {
       })
     )
 
-    // Filter out any null results and ensure they're properly typed
-    return questionsWithData.filter((q) => q !== null) as Question[]
+    // Filter out any null results
+    const validQuestions = questionsWithData.filter((q) => q !== null) as Question[]
+
+    // Sort by most-liked if needed
+    if (sortBy === 'most-liked') {
+      validQuestions.sort((a, b) => b.votes - a.votes)
+    }
+
+    return validQuestions
   },
 
   async getQuestionById(id: string): Promise<Question | null> {
@@ -190,6 +208,17 @@ export const questionService = {
       count: 0,
     }))
 
+    // Fetch poll if it exists
+    let poll = undefined
+    try {
+      const pollResponse = await pollService.getPollByQuestionId(id)
+      if (pollResponse?.data) {
+        poll = pollResponse.data
+      }
+    } catch (error) {
+      console.error('Error fetching poll:', error)
+    }
+
     return {
       id: question.id,
       title: question.title,
@@ -202,6 +231,7 @@ export const questionService = {
       viewCount: question.view_count || 0,
       createdAt: question.created_at,
       updatedAt: question.updated_at,
+      poll,
     }
   },
 
@@ -308,6 +338,41 @@ export const questionService = {
       }
     }
 
+    // Create poll if poll options are provided
+    if (data.pollOptions && data.pollOptions.length >= 2) {
+      try {
+        const { data: pollData, error: pollError } = await supabase
+          .from('polls')
+          .insert({
+            question_id: question.id,
+          })
+          .select()
+          .single()
+
+        if (pollError) {
+          console.error('Error creating poll:', pollError)
+        } else if (pollData) {
+          // Create poll options
+          const optionsToInsert = data.pollOptions.map((text) => ({
+            poll_id: pollData.id,
+            text: text,
+            votes: 0,
+          }))
+
+          const { error: optionsError } = await supabase
+            .from('poll_options')
+            .insert(optionsToInsert)
+
+          if (optionsError) {
+            console.error('Error creating poll options:', optionsError)
+          }
+        }
+      } catch (error) {
+        console.error('Error creating poll:', error)
+        // Continue anyway, question is already created
+      }
+    }
+
     // Return the created question with default values
     return {
       id: question.id,
@@ -346,8 +411,37 @@ export const questionService = {
   },
 
   async deleteQuestion(id: string): Promise<void> {
-    // TODO: Implement with Supabase delete
-    console.log('Deleting question', id)
+    try {
+      // Delete question_tags first (foreign key dependency)
+      const { error: tagsError } = await supabase
+        .from('question_tags')
+        .delete()
+        .eq('question_id', id)
+
+      if (tagsError) throw tagsError
+
+      // Delete votes for this question
+      const { error: votesError } = await supabase
+        .from('votes')
+        .delete()
+        .eq('target_id', id)
+        .eq('target_type', 'question')
+
+      if (votesError) throw votesError
+
+      // Delete the question itself
+      const { error: questionError } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', id)
+
+      if (questionError) throw questionError
+
+      console.log('Question deleted successfully:', id)
+    } catch (err) {
+      console.error('Error deleting question:', err)
+      throw err
+    }
   },
 
   async searchQuestions(query: string, tags?: string[]): Promise<Question[]> {

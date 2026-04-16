@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Search, LogOut, User } from 'lucide-react'
 import { useAuth } from '../../customHooks/useAuth'
 import { profileService } from '../../services/profileService'
@@ -7,8 +7,10 @@ import { useState, useEffect } from 'react'
 export default function Header() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const isAuthenticated = !!user
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState<string>('')
 
   // Fetch user avatar when user changes
   useEffect(() => {
@@ -17,12 +19,41 @@ export default function Header() {
     const fetchAvatar = async () => {
       const { data } = await profileService.getUserProfile(user.id)
       if (data?.avatarUrl) {
-        setAvatarUrl(data.avatarUrl)
+        // Add cache buster to force image reload
+        const cacheBustUrl = `${data.avatarUrl}?t=${Date.now()}`
+        setAvatarUrl(cacheBustUrl)
+      } else {
+        setAvatarUrl(null)
       }
     }
 
+    // Fetch immediately
     fetchAvatar()
+
+    // Refetch avatar every 1 second to catch updates from profile page
+    const interval = setInterval(fetchAvatar, 1000)
+    return () => clearInterval(interval)
   }, [user?.id])
+
+  // Load search from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const searchQuery = params.get('search') || ''
+    setSearchInput(searchQuery)
+  }, [location.search])
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchInput(value)
+    
+    // Update URL with search query
+    if (value.trim()) {
+      navigate(`/?search=${encodeURIComponent(value)}`)
+    } else {
+      navigate('/')
+    }
+  }
 
   const handleLogout = async () => {
     await signOut()
@@ -46,6 +77,8 @@ export default function Header() {
               type="text"
               placeholder="Search questions..."
               className="header-search-input"
+              value={searchInput}
+              onChange={handleSearchChange}
             />
           </div>
         </div>

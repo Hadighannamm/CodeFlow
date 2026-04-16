@@ -1,53 +1,163 @@
 import clsx from 'clsx'
+import { useState } from 'react'
 import type { Answer } from '../../types/Answer'
 import VoteButton from './VoteButton'
+import { voteService } from '../../services/voteService'
+import { useAuth } from '../../customHooks/useAuth'
 
 type AnswerItemProps = {
   answer: Answer
   isAccepted?: boolean
-  onVote?: (voteType: 'up' | 'down') => void
+  onVoteChange?: (answerId: string, newVoteCount: number) => void
 }
 
 export default function AnswerItem({
   answer,
   isAccepted = false,
-  onVote,
+  onVoteChange,
 }: AnswerItemProps) {
+  const { user } = useAuth()
+  const [voteCount, setVoteCount] = useState(answer.votes)
+  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
+  const [isVoting, setIsVoting] = useState(false)
+
+  const handleVote = async (voteType: 'up' | 'down') => {
+    if (!user) {
+      alert('You must be logged in to vote')
+      return
+    }
+
+    setIsVoting(true)
+    try {
+      const voteTypeNum = voteType === 'up' ? 1 : -1
+      const existingVote = await voteService.getUserVote(user.id, answer.id)
+
+      let newCount = voteCount
+
+      if (existingVote) {
+        // User has already voted
+        if ((existingVote.voteType === 1 && voteType === 'up') || 
+            (existingVote.voteType === -1 && voteType === 'down')) {
+          // Remove the vote (toggle off)
+          await voteService.deleteVote(existingVote.id)
+          newCount = voteCount - existingVote.voteType
+          setUserVote(null)
+        } else {
+          // Change the vote
+          const oldVote = existingVote.voteType
+          await voteService.updateVote(existingVote.id, voteTypeNum)
+          newCount = voteCount - oldVote + voteTypeNum
+          setUserVote(voteType)
+        }
+      } else {
+        // Create new vote
+        await voteService.createVote({
+          userId: user.id,
+          targetId: answer.id,
+          targetType: 'answer',
+          voteType: voteTypeNum,
+        })
+        newCount = voteCount + voteTypeNum
+        setUserVote(voteType)
+      }
+
+      setVoteCount(newCount)
+      onVoteChange?.(answer.id, newCount)
+    } catch (err) {
+      console.error('Error voting:', err)
+      alert('Failed to record vote. Please try again.')
+    } finally {
+      setIsVoting(false)
+    }
+  }
+
   return (
-    <div className={clsx('border-l-4 pl-4 py-4', isAccepted ? 'border-[#f97316] bg-[#fed7aa]' : 'border-gray-300')}>
-      <div className="flex gap-4">
+    <div
+      style={{
+        backgroundColor: isAccepted ? '#fef3c7' : '#ffffff',
+        border: isAccepted ? '2px solid #f97316' : '1px solid #e5e7eb',
+        borderRadius: '0.5rem',
+        padding: '1.5rem',
+        marginBottom: '1rem',
+      }}
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1.5rem' }}>
         {/* Vote Section */}
-        <div className="flex flex-col items-center gap-2">
-          {onVote && (
-            <>
-              <VoteButton
-                voteType="up"
-                count={answer.votes}
-                onVote={onVote}
-              />
-            </>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+          <VoteButton
+            voteType="up"
+            count={voteCount}
+            onVote={() => handleVote('up')}
+            userVote={userVote}
+            isLoading={isVoting}
+          />
+          <VoteButton
+            voteType="down"
+            count={0}
+            onVote={() => handleVote('down')}
+            userVote={userVote}
+            isLoading={isVoting}
+          />
           {isAccepted && (
-            <div className="text-[#f97316] text-xs font-semibold">
+            <div style={{ color: '#f97316', fontSize: '0.75rem', fontWeight: '600', marginTop: '0.5rem' }}>
               ✓ Accepted
             </div>
           )}
         </div>
 
         {/* Answer Content */}
-        <div className="flex-1">
-          <p className="text-gray-800 mb-4 whitespace-pre-wrap">
+        <div>
+          {/* Author Section */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem',
+            }}
+          >
+            {answer.author.avatarUrl ? (
+              <img
+                src={answer.author.avatarUrl}
+                alt={answer.author.username}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: '#e5e7eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#6b7280',
+                }}
+              >
+                {answer.author.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1f2937' }}>
+                {answer.author.username}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                {new Date(answer.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+
+          <p style={{ color: '#1f2937', marginBottom: '1rem', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
             {answer.body}
           </p>
-
-          <div className="text-xs text-gray-500 flex items-center gap-2">
-            <span>answered by</span>
-            <span className="font-semibold text-gray-700">
-              {answer.author.username}
-            </span>
-            <span>•</span>
-            <span>{new Date(answer.createdAt).toLocaleDateString()}</span>
-          </div>
         </div>
       </div>
     </div>

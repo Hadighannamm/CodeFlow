@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { User } from 'lucide-react'
+import { User, Trash2 } from 'lucide-react'
 import { useAuth } from '../customHooks/useAuth'
 import { profileService } from '../services/profileService'
+import { questionService } from '../services/questionService'
 import type { UserProfile } from '../types/UserProfile'
 import '../styles/pages/ProfilePage.css'
 
@@ -136,6 +137,24 @@ export default function ProfilePage() {
     setIsSaving(false)
   }
 
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      await questionService.deleteQuestion(questionId)
+      // Remove the question from the local state
+      setUserQuestions((prev) => prev.filter((q) => q.id !== questionId))
+      // Update the count
+      setQuestionsCount((prev) => Math.max(0, prev - 1))
+      setError(null)
+    } catch (err) {
+      console.error('Error deleting question:', err)
+      setError(`Failed to delete question: ${(err as Error).message || 'Unknown error'}`)
+    }
+  }
+
   if (isLoadingProfile) {
     return (
       <div className="profile-page-container">
@@ -210,6 +229,9 @@ export default function ProfilePage() {
                   </p>
                 )}
                 <p className="profile-info-email">{user.email}</p>
+                {user.bio && (
+                  <p className="profile-info-bio">{user.bio}</p>
+                )}
                 <p className="profile-info-member">
                   Member since {new Date(user.createdAt).toLocaleDateString()}
                 </p>
@@ -342,11 +364,37 @@ export default function ProfilePage() {
             <div className="profile-activity-list">
               {userQuestions.map((q) => (
                 <div key={q.id} className="profile-question-item">
-                  <h4 className="profile-question-title">
-                    {q.title}
-                  </h4>
-                  <div className="profile-question-meta">
-                    <span>{new Date(q.created_at).toLocaleDateString()}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 className="profile-question-title">
+                        {q.title}
+                      </h4>
+                      <div className="profile-question-meta">
+                        <span>{new Date(q.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteQuestion(q.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '0.375rem',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ef4444')}
+                    >
+                      <Trash2 size={16} />
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}

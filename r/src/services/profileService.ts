@@ -11,6 +11,31 @@ export const profileService = {
         .eq('id', userId)
         .single()
 
+      // If user profile doesn't exist, return a default profile
+      if (error && error.code === 'PGRST116') {
+        console.log('User profile not found, returning default profile')
+        
+        // Get the current authenticated user's email
+        const { data: authData } = await supabase.auth.getUser()
+        const email = authData?.user?.email ?? ''
+        
+        // Return a default profile that the user can edit and save
+        const defaultProfile: UserProfile = {
+          id: userId,
+          username: email.split('@')[0] || 'user',
+          email: email,
+          firstName: '',
+          lastName: '',
+          reputation: 0,
+          bio: '',
+          avatarUrl: undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        return { data: defaultProfile, error: null }
+      }
+
       if (error) {
         console.error('Error fetching user profile:', error)
         return { data: null, error }
@@ -75,10 +100,23 @@ export const profileService = {
         }
       }
 
+      // Get user email from auth
+      const { data: authData } = await supabase.auth.getUser()
+      const email = authData?.user?.email || updates.email || ''
+
       const { data, error } = await supabase
         .from('users')
-        .update(updateData)
-        .eq('id', userId)
+        .upsert({
+          id: userId,
+          email: email,
+          username: updateData.username || updates.username || email.split('@')[0],
+          first_name: updateData.first_name || updates.firstName || '',
+          last_name: updateData.last_name || updates.lastName || '',
+          bio: updateData.bio !== undefined ? updateData.bio : (updates.bio || ''),
+          avatar_url: updateData.avatar_url || updates.avatarUrl,
+          reputation: updates.reputation || 0,
+          updated_at: new Date().toISOString(),
+        })
         .select()
         .single()
 
@@ -124,6 +162,8 @@ export const profileService = {
       const fileName = `${userId}-${Date.now()}.${fileExt}`
       const filePath = fileName
 
+      console.log('Uploading avatar:', { userId, fileName, filePath, fileType: file.type })
+
       // Upload file to Supabase storage
       const { data, error: uploadError } = await supabase.storage
         .from('ProfilePhoto')
@@ -143,14 +183,20 @@ export const profileService = {
         return { url: null, error: uploadError.message || 'Failed to upload avatar' }
       }
 
+      console.log('File uploaded successfully:', data)
+
       // Get public URL
       const { data: publicUrlData } = supabase.storage
         .from('ProfilePhoto')
         .getPublicUrl(filePath)
 
+      console.log('Public URL data:', publicUrlData)
+
       if (!publicUrlData?.publicUrl) {
         return { url: null, error: 'Failed to get public URL' }
       }
+
+      console.log('Generated public URL:', publicUrlData.publicUrl)
 
       // Update user profile with avatar URL
       const { error: updateError } = await supabase
@@ -163,6 +209,7 @@ export const profileService = {
         return { url: null, error: 'Failed to save avatar URL' }
       }
 
+      console.log('Avatar URL saved to database successfully')
       return { url: publicUrlData.publicUrl, error: null }
     } catch (error) {
       console.error('Avatar upload error:', error)

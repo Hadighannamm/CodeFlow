@@ -18,9 +18,12 @@ export default function QuestionForm({
       title: '',
       body: '',
       tags: [],
+      pollOptions: [],
     }
   )
   const [tagInput, setTagInput] = useState('')
+  const [pollOptionInput, setPollOptionInput] = useState('')
+  const [enablePoll, setEnablePoll] = useState(false)
   const [error, setError] = useState('')
 
   const handleAddTag = () => {
@@ -40,6 +43,23 @@ export default function QuestionForm({
     })
   }
 
+  const handleAddPollOption = () => {
+    if (pollOptionInput.trim() && formData.pollOptions && !formData.pollOptions.includes(pollOptionInput.trim())) {
+      setFormData({
+        ...formData,
+        pollOptions: [...(formData.pollOptions || []), pollOptionInput.trim()],
+      })
+      setPollOptionInput('')
+    }
+  }
+
+  const handleRemovePollOption = (index: number) => {
+    setFormData({
+      ...formData,
+      pollOptions: formData.pollOptions?.filter((_, i) => i !== index) || [],
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -54,6 +74,10 @@ export default function QuestionForm({
     }
     if (formData.tags.length === 0) {
       setError('At least one tag is required')
+      return
+    }
+    if (enablePoll && (!formData.pollOptions || formData.pollOptions.length < 2)) {
+      setError('Poll must have at least 2 options')
       return
     }
 
@@ -149,6 +173,77 @@ export default function QuestionForm({
         <p className="question-form-help">
           Add up to 5 relevant tags (e.g., javascript, react, bugs)
         </p>
+      </div>
+
+      {/* Poll Section */}
+      <div className="question-form-group">
+        <div className="question-form-poll-toggle">
+          <label className="question-form-checkbox">
+            <input
+              type="checkbox"
+              checked={enablePoll}
+              onChange={(e) => {
+                setEnablePoll(e.target.checked)
+                if (!e.target.checked) {
+                  setFormData({ ...formData, pollOptions: [] })
+                }
+              }}
+            />
+            Add a poll to this question
+          </label>
+        </div>
+
+        {enablePoll && (
+          <div className="question-form-poll-options">
+            <label className="question-form-label">
+              Poll Options
+            </label>
+            <p className="question-form-help">
+              Add options for people to vote on
+            </p>
+            <div className="question-form-poll-input-wrapper">
+              <input
+                type="text"
+                className="question-form-input"
+                placeholder="Add a poll option..."
+                value={pollOptionInput}
+                onChange={(e) => setPollOptionInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddPollOption()
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddPollOption}
+                className="btn-secondary"
+              >
+                Add Option
+              </button>
+            </div>
+            <div className="question-form-poll-options-list">
+              {formData.pollOptions?.map((option, index) => (
+                <div key={index} className="question-form-poll-option">
+                  <span>{option}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePollOption(index)}
+                    className="question-form-poll-option-remove"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            {formData.pollOptions && formData.pollOptions.length > 0 && (
+              <p className="question-form-help">
+                {formData.pollOptions.length} option{formData.pollOptions.length !== 1 ? 's' : ''} added
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Submit */}

@@ -22,22 +22,33 @@ export default function VoteButton({
     <button
       onClick={() => onVote(voteType)}
       disabled={isLoading}
-      className={clsx(
-        'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors',
-        isActive
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        backgroundColor: 'transparent',
+        border: 'none',
+        padding: 0,
+        cursor: isLoading ? 'not-allowed' : 'pointer',
+        color: isActive
           ? voteType === 'up'
-            ? 'bg-green-100 text-green-600'
-            : 'bg-red-100 text-red-600'
-          : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-        isLoading && 'opacity-50 cursor-not-allowed'
-      )}
+            ? '#16a34a'
+            : '#dc2626'
+          : '#4b5563',
+        opacity: isLoading ? 0.5 : 1,
+        transition: 'color 0.2s',
+        outline: 'none',
+      }}
     >
+      {voteType === 'up' && (
+        <span className="text-sm font-semibold">{count}</span>
+      )}
       {voteType === 'up' ? (
         <ThumbsUp size={18} />
       ) : (
         <ThumbsDown size={18} />
       )}
-      <span className="text-sm font-semibold">{count}</span>
+      
     </button>
   )
 }
