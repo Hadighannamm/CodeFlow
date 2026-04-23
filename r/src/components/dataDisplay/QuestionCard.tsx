@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom'
-import { Eye, Bookmark } from 'lucide-react'
+import { Eye, Bookmark, Repeat2, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { Question } from '../../types/Question'
-import VoteButton from './VoteButton'
 import { useToast } from '../../customHooks/useToast'
 import { useVoteService } from '../../customHooks/useVoteService'
 import { useSavedQuestionService } from '../../customHooks/useSavedQuestionService'
 import { useAuth } from '../../customHooks/useAuth'
 import { voteService } from '../../services/voteService'
+import { repostService } from '../../services/repostService'
 import '../../styles/components/QuestionCard.css'
 
 type QuestionCardProps = {
@@ -23,10 +23,17 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
 
   const [voteCount, setVoteCount] = useState(question.votes)
   const [viewCount, setViewCount] = useState(question.viewCount)
+  const [repostCount, setRepostCount] = useState(question.repostCount || 0)
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
+  const [hasReposted, setHasReposted] = useState(false)
   const [isVoting, setIsVoting] = useState(false)
+  const [isReposting, setIsReposting] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    setRepostCount(question.repostCount || 0)
+  }, [question.repostCount])
 
   // Fetch user's existing vote, actual vote count, and view count when component mounts
   useEffect(() => {
@@ -47,6 +54,9 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
           // Check if question is saved
           const saved = await savedSvc.isQuestionSaved(user.id, question.id)
           setIsSaved(saved)
+
+          const reposted = await repostService.hasUserReposted(user.id, question.id)
+          setHasReposted(reposted)
         }
       } catch (err) {
         console.error('Error fetching vote data:', err)
@@ -155,6 +165,39 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
     }
   }
 
+  const handleRepost = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!user) {
+      toast.warning('You must be logged in to repost')
+      return
+    }
+
+    if (isReposting) return
+
+    setIsReposting(true)
+    try {
+      const result = await repostService.toggleRepost(user.id, question.id)
+      if (!result.success) {
+        toast.error('Failed to update repost')
+        return
+      }
+
+      if (result.isReposted) {
+        setHasReposted(true)
+        setRepostCount((prev) => prev + 1)
+        toast.success('Question reposted')
+      } else {
+        setHasReposted(false)
+        setRepostCount((prev) => Math.max(prev - 1, 0))
+        toast.info('Repost removed')
+      }
+    } finally {
+      setIsReposting(false)
+    }
+  }
+
   return (
     <Link to={`/question/${question.id}`} className="question-card">
       <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1rem', position: 'relative' }}>
@@ -234,21 +277,39 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
                 <Eye size={16} />
                 <span>{viewCount} </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }} onClick={(e) => e.preventDefault()}>
-                <VoteButton
-                  voteType="up"
-                  count={voteCount}
-                  onVote={() => handleVote('up')}
-                  userVote={userVote}
-                  isLoading={isVoting}
-                />
-                <VoteButton
-                  voteType="down"
-                  count={0}
-                  onVote={() => handleVote('down')}
-                  userVote={userVote}
-                  isLoading={isVoting}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={(e) => e.preventDefault()}>
+                <div className="question-card-vote-group">
+                  <span className="question-card-vote-total">{voteCount}</span>
+                  <button
+                    type="button"
+                    className={`question-card-vote-icon-btn up ${userVote === 'up' ? 'active' : ''}`}
+                    onClick={() => handleVote('up')}
+                    disabled={isVoting}
+                    title="Like"
+                  >
+                    <ThumbsUp size={16} />
+                  </button>
+                  
+                  <button
+                    type="button"
+                    className={`question-card-vote-icon-btn down ${userVote === 'down' ? 'active' : ''}`}
+                    onClick={() => handleVote('down')}
+                    disabled={isVoting}
+                    title="Dislike"
+                  >
+                    <ThumbsDown size={16} />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className={`question-card-repost-btn ${hasReposted ? 'active' : ''}`}
+                  onClick={handleRepost}
+                  disabled={isReposting}
+                  title={hasReposted ? 'Remove repost' : 'Repost this question'}
+                >
+                  <Repeat2 size={16} />
+                  <span>{repostCount}</span>
+                </button>
               </div>
             </div>
             

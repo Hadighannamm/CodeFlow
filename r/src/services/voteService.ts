@@ -1,5 +1,6 @@
 import type { Vote, VoteInput } from '../types/Vote'
 import { supabase } from '../lib/supabaseClient'
+import { reputationService } from './reputationService'
 
 export const voteService = {
   async getUserVote(userId: string, targetId: string): Promise<Vote | null> {
@@ -46,6 +47,9 @@ export const voteService = {
         .single()
 
       if (error) throw error
+
+      await reputationService.incrementUserReputation(data.userId, 1)
+
       return {
         id: newVote.id,
         userId: newVote.user_id,
@@ -70,6 +74,9 @@ export const voteService = {
         .single()
 
       if (error) throw error
+
+      await reputationService.incrementUserReputation(updatedVote.user_id, 1)
+
       return {
         id: updatedVote.id,
         userId: updatedVote.user_id,
@@ -92,6 +99,11 @@ export const voteService = {
         .eq('id', id)
 
       if (error) throw error
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.id) {
+        await reputationService.incrementUserReputation(user.id, -1)
+      }
     } catch (err) {
       console.error('Error deleting vote:', err)
       throw new Error('Failed to delete vote')

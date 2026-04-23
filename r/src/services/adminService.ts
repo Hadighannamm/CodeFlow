@@ -4,6 +4,51 @@ import type { AdminSetting, AdminSettingsInput } from '../types/AdminSettings'
 import type { ActivityLog } from '../types/ActivityLog'
 import type { UserProfile } from '../types/UserProfile'
 
+export type ContentFilterStatus = 'all' | 'active' | 'reported'
+
+export type AdminQuestionModerationItem = {
+  id: string
+  title: string
+  authorId: string
+  authorName: string
+  createdAt: string
+  votes: number
+  tags: string[]
+  answerCount: number
+  isReported: boolean
+}
+
+export type AdminAnswerModerationItem = {
+  id: string
+  questionId: string
+  body: string
+  authorId: string
+  authorName: string
+  createdAt: string
+  isReported: boolean
+  reportCount: number
+}
+
+export type AdminReportedContentItem = {
+  reportId: string
+  targetId: string
+  type: 'question' | 'answer'
+  reason: string
+  description?: string
+  status: string
+  createdAt: string
+  reporterName: string
+  authorName: string
+  titleOrSnippet: string
+}
+
+type ContentFilters = {
+  search?: string
+  tag?: string
+  userId?: string
+  status?: ContentFilterStatus
+}
+
 class AdminService {
   // ===== USER MANAGEMENT =====
   async getAllUsers() {
@@ -91,6 +136,278 @@ class AdminService {
   }
 
   // ===== QUESTION & ANSWER MANAGEMENT =====
+  async getModerationFilterOptions() {
+    try {
+      const [{ data: users, error: usersError }, { data: tags, error: tagsError }] = await Promise.all([
+        supabase.from('users').select('id, username').order('username', { ascending: true }),
+        supabase.from('tags').select('id, name').order('name', { ascending: true }),
+      ])
+
+      if (usersError) throw usersError
+      if (tagsError) throw tagsError
+
+      return {
+        data: {
+          users: (users || []) as Array<{ id: string; username: string }>,
+          tags: (tags || []) as Array<{ id: string; name: string }>,
+        },
+        error: null,
+      }
+    } catch (err) {
+      return { data: null, error: err }
+    }
+  }
+
+  async getQuestionsForModeration(filters: ContentFilters = {}) {
+    try {
+      let questionQuery = supabase
+        .from('questions')
+        .select('id, title, body, user_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(120)
+
+      if (filters.search?.trim()) {
+        const searchValue = filters.search.trim()
+        questionQuery = questionQuery.or(`title.ilike.%${searchValue}%,body.ilike.%${searchValue}%`)
+      }
+
+      if (filters.userId) {
+        questionQuery = questionQuery.eq('user_id', filters.userId)
+      }
+
+      const { data: questions, error: questionsError } = await questionQuery
+      if (questionsError) throw questionsError
+      if (!questions || questions.length === 0) {
+        return { data: [] as AdminQuestionModerationItem[], error: null }
+      }
+
+      const questionIds = questions.map((q: any) => q.id)
+      const userIds = [...new Set(questions.map((q: any) => q.user_id))]
+
+      const [
+        { data: users, error: usersError },
+        { data: questionTags, error: tagsError },
+        { data: answerRows, error: answersError },
+        { data: voteRows, error: votesError },
+        { data: reports, error: reportsError },
+      ] = await Promise.all([
+        supabase.from('users').select('id, username').in('id', userIds),
+        supabase
+          .from('question_tags')
+          .select('question_id, tags(name)')
+          .in('question_id', questionIds),
+        supabase.from('answers').select('id, question_id').in('question_id', questionIds),
+        supabase
+          .from('votes')
+          .select('target_id, vote_type')
+          .eq('target_type', 'question')
+          .in('target_id', questionIds),
+        supabase
+          .from('reports')
+          .select('target_id, status')
+          .eq('type', 'question')
+          .in('target_id', questionIds)
+          .in('status', ['pending', 'reviewed']),
+      ])
+
+      if (usersError) throw usersError
+      if (tagsError) throw tagsError
+      if (answersError) throw answersError
+      if (votesError) throw votesError
+      if (reportsError) throw reportsError
+
+      const userMap = new Map((users || []).map((u: any) => [u.id, u.username || 'Unknown']))
+      const tagsByQuestion = new Map<string, string[]>()
+      for (const row of questionTags || []) {
+        const existing = tagsByQuestion.get((row as any).question_id) || []
+        const tagName = (row as any).tags?.name
+        if (tagName) existing.push(tagName)
+        tagsByQuestion.set((row as any).question_id, existing)
+      }
+
+      const answersCountByQuestion = new Map<string, number>()
+      for (const answer of answerRows || []) {
+        const key = (answer as any).question_id
+        answersCountByQuestion.set(key, (answersCountByQuestion.get(key) || 0) + 1)
+      }
+
+      const votesByQuestion = new Map<string, number>()
+      for (const vote of voteRows || []) {
+        const key = (vote as any).target_id
+        const voteType = Number((vote as any).vote_type) || 0
+        votesByQuestion.set(key, (votesByQuestion.get(key) || 0) + voteType)
+      }
+
+      const reportedQuestionIds = new Set((reports || []).map((report: any) => report.target_id))
+
+      let mapped = questions.map((question: any) => ({
+        id: question.id,
+        title: question.title,
+        authorId: question.user_id,
+        authorName: userMap.get(question.user_id) || 'Unknown',
+        createdAt: question.created_at,
+        votes: votesByQuestion.get(question.id) || 0,
+        tags: tagsByQuestion.get(question.id) || [],
+        answerCount: answersCountByQuestion.get(question.id) || 0,
+        isReported: reportedQuestionIds.has(question.id),
+      }))
+
+      if (filters.tag?.trim()) {
+        const tagFilter = filters.tag.trim().toLowerCase()
+        mapped = mapped.filter((item) => item.tags.some((tag) => tag.toLowerCase() === tagFilter))
+      }
+
+      if (filters.status === 'reported') {
+        mapped = mapped.filter((item) => item.isReported)
+      }
+      if (filters.status === 'active') {
+        mapped = mapped.filter((item) => !item.isReported)
+      }
+
+      return { data: mapped as AdminQuestionModerationItem[], error: null }
+    } catch (err) {
+      return { data: null, error: err }
+    }
+  }
+
+  async getAnswersForQuestionModeration(questionId: string) {
+    try {
+      const { data: answers, error: answersError } = await supabase
+        .from('answers')
+        .select('id, question_id, body, user_id, created_at')
+        .eq('question_id', questionId)
+        .order('created_at', { ascending: true })
+
+      if (answersError) throw answersError
+      if (!answers || answers.length === 0) {
+        return { data: [] as AdminAnswerModerationItem[], error: null }
+      }
+
+      const answerIds = answers.map((answer: any) => answer.id)
+      const userIds = [...new Set(answers.map((answer: any) => answer.user_id))]
+
+      const [{ data: users, error: usersError }, { data: reports, error: reportsError }] = await Promise.all([
+        supabase.from('users').select('id, username').in('id', userIds),
+        supabase
+          .from('reports')
+          .select('target_id')
+          .eq('type', 'answer')
+          .in('target_id', answerIds)
+          .in('status', ['pending', 'reviewed']),
+      ])
+
+      if (usersError) throw usersError
+      if (reportsError) throw reportsError
+
+      const userMap = new Map((users || []).map((u: any) => [u.id, u.username || 'Unknown']))
+      const reportCountByAnswer = new Map<string, number>()
+      for (const report of reports || []) {
+        const key = (report as any).target_id
+        reportCountByAnswer.set(key, (reportCountByAnswer.get(key) || 0) + 1)
+      }
+
+      const mapped = answers.map((answer: any) => ({
+        id: answer.id,
+        questionId: answer.question_id,
+        body: answer.body,
+        authorId: answer.user_id,
+        authorName: userMap.get(answer.user_id) || 'Unknown',
+        createdAt: answer.created_at,
+        isReported: (reportCountByAnswer.get(answer.id) || 0) > 0,
+        reportCount: reportCountByAnswer.get(answer.id) || 0,
+      }))
+
+      return { data: mapped as AdminAnswerModerationItem[], error: null }
+    } catch (err) {
+      return { data: null, error: err }
+    }
+  }
+
+  async getReportedContent() {
+    try {
+      const { data: reports, error: reportsError } = await supabase
+        .from('reports')
+        .select('id, type, target_id, reported_by_id, reason, description, status, created_at')
+        .in('type', ['question', 'answer'])
+        .in('status', ['pending', 'reviewed'])
+        .order('created_at', { ascending: false })
+
+      if (reportsError) throw reportsError
+      if (!reports || reports.length === 0) {
+        return { data: [] as AdminReportedContentItem[], error: null }
+      }
+
+      const questionIds = reports.filter((report: any) => report.type === 'question').map((report: any) => report.target_id)
+      const answerIds = reports.filter((report: any) => report.type === 'answer').map((report: any) => report.target_id)
+
+      const [{ data: questions }, { data: answers }, { data: reporters }] = await Promise.all([
+        questionIds.length > 0
+          ? supabase.from('questions').select('id, title, user_id').in('id', questionIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        answerIds.length > 0
+          ? supabase.from('answers').select('id, body, user_id').in('id', answerIds)
+          : Promise.resolve({ data: [] as any[], error: null }),
+        supabase
+          .from('users')
+          .select('id, username')
+          .in('id', [...new Set(reports.map((report: any) => report.reported_by_id))]),
+      ])
+
+      const contentAuthorIds = [
+        ...(questions || []).map((question: any) => question.user_id),
+        ...(answers || []).map((answer: any) => answer.user_id),
+      ]
+
+      const { data: contentAuthors, error: authorsError } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', [...new Set(contentAuthorIds)])
+
+      if (authorsError) throw authorsError
+
+      const questionMap = new Map((questions || []).map((question: any) => [question.id, question]))
+      const answerMap = new Map((answers || []).map((answer: any) => [answer.id, answer]))
+      const reporterMap = new Map((reporters || []).map((u: any) => [u.id, u.username || 'Unknown']))
+      const authorMap = new Map((contentAuthors || []).map((u: any) => [u.id, u.username || 'Unknown']))
+
+      const mapped = reports.map((report: any) => {
+        if (report.type === 'question') {
+          const question = questionMap.get(report.target_id)
+          return {
+            reportId: report.id,
+            targetId: report.target_id,
+            type: 'question' as const,
+            reason: report.reason,
+            description: report.description || '',
+            status: report.status,
+            createdAt: report.created_at,
+            reporterName: reporterMap.get(report.reported_by_id) || 'Unknown',
+            authorName: authorMap.get(question?.user_id) || 'Unknown',
+            titleOrSnippet: question?.title || 'Question unavailable',
+          }
+        }
+
+        const answer = answerMap.get(report.target_id)
+        return {
+          reportId: report.id,
+          targetId: report.target_id,
+          type: 'answer' as const,
+          reason: report.reason,
+          description: report.description || '',
+          status: report.status,
+          createdAt: report.created_at,
+          reporterName: reporterMap.get(report.reported_by_id) || 'Unknown',
+          authorName: authorMap.get(answer?.user_id) || 'Unknown',
+          titleOrSnippet: (answer?.body || 'Answer unavailable').slice(0, 180),
+        }
+      })
+
+      return { data: mapped as AdminReportedContentItem[], error: null }
+    } catch (err) {
+      return { data: null, error: err }
+    }
+  }
+
   async getAllQuestions() {
     try {
       const { data, error } = await supabase

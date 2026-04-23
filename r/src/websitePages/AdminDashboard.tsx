@@ -4,10 +4,18 @@ import { BarChart3, Users, FileText, AlertTriangle, Tag, Settings, Activity, Shi
 import { useAuth } from '../customHooks/useAuth'
 import { useToast } from '../customHooks/useToast'
 import { adminService } from '../services/adminService'
+import type {
+  AdminAnswerModerationItem,
+  AdminQuestionModerationItem,
+  AdminReportedContentItem,
+  ContentFilterStatus,
+} from '../services/adminService'
 import type { UserProfile } from '../types/UserProfile'
 import type { Report } from '../types/Report'
 import type { AdminSetting } from '../types/AdminSettings'
 import type { ActivityLog } from '../types/ActivityLog'
+import QuestionsModerationTable from '../components/admin/QuestionsModerationTable'
+import ReportedContentSection from '../components/admin/ReportedContentSection'
 import '../styles/pages/AdminDashboard.css'
 
 type TabType = 'overview' | 'users' | 'content' | 'reports' | 'tags' | 'analytics' | 'settings' | 'logs'
@@ -26,6 +34,25 @@ export default function AdminDashboard() {
   const [mostActiveUsers, setMostActiveUsers] = useState<UserProfile[]>([])
   const [mostAnsweredQuestions, setMostAnsweredQuestions] = useState<any[]>([])
   const [tags, setTags] = useState<any[]>([])
+  const [moderationQuestions, setModerationQuestions] = useState<AdminQuestionModerationItem[]>([])
+  const [reportedContent, setReportedContent] = useState<AdminReportedContentItem[]>([])
+  const [moderationUsers, setModerationUsers] = useState<Array<{ id: string; username: string }>>([])
+  const [moderationTags, setModerationTags] = useState<Array<{ id: string; name: string }>>([])
+  const [contentLoading, setContentLoading] = useState(false)
+  const [answersLoadingQuestionIds, setAnswersLoadingQuestionIds] = useState<Set<string>>(new Set())
+  const [expandedQuestionIds, setExpandedQuestionIds] = useState<Set<string>>(new Set())
+  const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, AdminAnswerModerationItem[]>>({})
+  const [contentFilters, setContentFilters] = useState<{
+    search: string
+    tag: string
+    userId: string
+    status: ContentFilterStatus
+  }>({
+    search: '',
+    tag: '',
+    userId: '',
+    status: 'all',
+  })
 
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -55,6 +82,13 @@ export default function AdminDashboard() {
 
     checkAdminAccess()
   }, [user, navigate, toast])
+
+  useEffect(() => {
+    if (activeTab === 'content') {
+      loadContentData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, contentFilters.search, contentFilters.tag, contentFilters.userId, contentFilters.status])
 
   const loadDashboardData = async () => {
     try {
@@ -107,6 +141,150 @@ export default function AdminDashboard() {
       if (result.data) setTags(result.data)
     } catch (err) {
       toast.error('Failed to load tags')
+    }
+  }
+
+  const loadContentData = async () => {
+    try {
+      setContentLoading(true)
+      const [questionsResult, reportedResult, optionsResult] = await Promise.all([
+        adminService.getQuestionsForModeration({
+          search: contentFilters.search,
+          tag: contentFilters.tag,
+          userId: contentFilters.userId,
+          status: contentFilters.status,
+        }),
+        adminService.getReportedContent(),
+        adminService.getModerationFilterOptions(),
+      ])
+
+      if (questionsResult.data) setModerationQuestions(questionsResult.data)
+      if (reportedResult.data) setReportedContent(reportedResult.data)
+      if (optionsResult.data) {
+        setModerationUsers(optionsResult.data.users)
+        setModerationTags(optionsResult.data.tags)
+      }
+    } catch (err) {
+      toast.error('Failed to load moderation content')
+    } finally {
+      setContentLoading(false)
+    }
+  }
+
+  const handleToggleAnswers = async (questionId: string) => {
+    const currentlyExpanded = expandedQuestionIds.has(questionId)
+    if (currentlyExpanded) {
+      const nextExpanded = new Set(expandedQuestionIds)
+      nextExpanded.delete(questionId)
+      setExpandedQuestionIds(nextExpanded)
+      return
+    }
+
+    const nextExpanded = new Set(expandedQuestionIds)
+    nextExpanded.add(questionId)
+    setExpandedQuestionIds(nextExpanded)
+
+    if (answersByQuestionId[questionId]) return
+
+    try {
+      const nextLoadingSet = new Set(answersLoadingQuestionIds)
+      nextLoadingSet.add(questionId)
+      setAnswersLoadingQuestionIds(nextLoadingSet)
+
+      const result = await adminService.getAnswersForQuestionModeration(questionId)
+      if (result.data) {
+        setAnswersByQuestionId((prev) => ({ ...prev, [questionId]: result.data || [] }))
+      }
+    } catch (err) {
+      toast.error('Failed to load answers for question')
+    } finally {
+      const nextLoadingSet = new Set(answersLoadingQuestionIds)
+      nextLoadingSet.delete(questionId)
+      setAnswersLoadingQuestionIds(nextLoadingSet)
+    }
+  }
+
+  const handleDeleteQuestionModeration = async (questionId: string) => {
+    const confirmed = window.confirm('Delete this question and all associated moderation entries?')
+    if (!confirmed) return
+
+    try {
+      const result = await adminService.deleteQuestion(questionId)
+      if (!result.error) {
+        toast.success('Question deleted')
+        loadContentData()
+      } else {
+        toast.error('Failed to delete question')
+      }
+    } catch (err) {
+      toast.error('Failed to delete question')
+    }
+  }
+
+  const handleDeleteAnswerModeration = async (answerId: string) => {
+    const confirmed = window.confirm('Delete this answer?')
+    if (!confirmed) return
+
+    try {
+      const result = await adminService.deleteAnswer(answerId)
+      if (!result.error) {
+        toast.success('Answer deleted')
+        setAnswersByQuestionId((prev) => {
+          const updated: Record<string, AdminAnswerModerationItem[]> = {}
+          for (const [questionId, answers] of Object.entries(prev)) {
+            updated[questionId] = answers.filter((answer) => answer.id !== answerId)
+          }
+          return updated
+        })
+        loadContentData()
+      } else {
+        toast.error('Failed to delete answer')
+      }
+    } catch (err) {
+      toast.error('Failed to delete answer')
+    }
+  }
+
+  const handleIgnoreReport = async (reportId: string) => {
+    try {
+      const result = await adminService.updateReportStatus(reportId, 'dismissed')
+      if (!result.error) {
+        toast.success('Report ignored')
+        loadContentData()
+      } else {
+        toast.error('Failed to ignore report')
+      }
+    } catch (err) {
+      toast.error('Failed to ignore report')
+    }
+  }
+
+  const handleDeleteReportedContent = async (item: AdminReportedContentItem) => {
+    const confirmed = window.confirm('Delete reported content and resolve the report?')
+    if (!confirmed) return
+
+    try {
+      const deleteResult =
+        item.type === 'question'
+          ? await adminService.deleteQuestion(item.targetId)
+          : await adminService.deleteAnswer(item.targetId)
+
+      if (deleteResult.error) {
+        toast.error('Failed to delete reported content')
+        return
+      }
+
+      const reportResult = await adminService.updateReportStatus(item.reportId, 'resolved')
+      if (reportResult.error) {
+        toast.error('Content deleted but report status update failed')
+        loadContentData()
+        return
+      }
+
+      toast.success('Reported content deleted and report resolved')
+      loadContentData()
+    } catch (err) {
+      toast.error('Failed to process report action')
     }
   }
 
@@ -520,7 +698,100 @@ export default function AdminDashboard() {
         {activeTab === 'content' && (
           <div className="admin-section">
             <h2>Content Moderation</h2>
-            <p>Questions and Answers moderation tools coming soon...</p>
+            <div className="content-filter-grid">
+              <div className="content-filter-item">
+                <label htmlFor="content-search">Search</label>
+                <input
+                  id="content-search"
+                  type="text"
+                  className="admin-input"
+                  placeholder="Search question title or body"
+                  value={contentFilters.search}
+                  onChange={(e) =>
+                    setContentFilters((prev) => ({ ...prev, search: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="content-filter-item">
+                <label htmlFor="content-tag-filter">Filter By Tag</label>
+                <select
+                  id="content-tag-filter"
+                  className="admin-select"
+                  value={contentFilters.tag}
+                  onChange={(e) =>
+                    setContentFilters((prev) => ({ ...prev, tag: e.target.value }))
+                  }
+                >
+                  <option value="">All Tags</option>
+                  {moderationTags.map((tag) => (
+                    <option key={tag.id} value={tag.name}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="content-filter-item">
+                <label htmlFor="content-user-filter">Filter By User</label>
+                <select
+                  id="content-user-filter"
+                  className="admin-select"
+                  value={contentFilters.userId}
+                  onChange={(e) =>
+                    setContentFilters((prev) => ({ ...prev, userId: e.target.value }))
+                  }
+                >
+                  <option value="">All Users</option>
+                  {moderationUsers.map((filterUser) => (
+                    <option key={filterUser.id} value={filterUser.id}>
+                      {filterUser.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="content-filter-item">
+                <label htmlFor="content-status-filter">Filter By Status</label>
+                <select
+                  id="content-status-filter"
+                  className="admin-select"
+                  value={contentFilters.status}
+                  onChange={(e) =>
+                    setContentFilters((prev) => ({
+                      ...prev,
+                      status: e.target.value as ContentFilterStatus,
+                    }))
+                  }
+                >
+                  <option value="all">All</option>
+                  <option value="reported">Reported</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+            </div>
+
+            {contentLoading ? (
+              <p className="subtle-text">Loading moderation data...</p>
+            ) : (
+              <>
+                <QuestionsModerationTable
+                  questions={moderationQuestions}
+                  answersByQuestionId={answersByQuestionId}
+                  expandedQuestionIds={expandedQuestionIds}
+                  answersLoadingQuestionIds={answersLoadingQuestionIds}
+                  onToggleAnswers={handleToggleAnswers}
+                  onDeleteQuestion={handleDeleteQuestionModeration}
+                  onDeleteAnswer={handleDeleteAnswerModeration}
+                />
+
+                <ReportedContentSection
+                  items={reportedContent}
+                  onIgnoreReport={handleIgnoreReport}
+                  onDeleteContent={handleDeleteReportedContent}
+                />
+              </>
+            )}
           </div>
         )}
 

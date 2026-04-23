@@ -9,33 +9,40 @@
 }
 
 .header-container {
+  max-width: 80rem;
   margin: 0 auto;
   padding: 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+}
+
+.btn-logo{
+ display: flex;
 }
 
 .header-logo-link {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 5px;
   text-decoration: none;
   color: inherit;
 }
 
 .header-logo-icon {
-  width: 2rem;
-  height: 2rem;
-  background-color: var(--color-primary-orange);
-  border-radius: 0.5rem;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-white);
-  font-weight: 700;
-  font-size: 0.875rem;
+}
+
+.header-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+
 }
 
 .header-logo-text {
@@ -46,11 +53,8 @@
 
 .header-search-container {
   flex: 1;
-  width: 28rem;
+  max-width: 28rem;
   margin: 0 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .header-search-wrapper {
@@ -58,7 +62,6 @@
 }
 
 .header-search-icon {
-
   position: absolute;
   left: 0.75rem;
   top: 0.75rem;
@@ -66,7 +69,7 @@
 }
 
 .header-search-input {
-  
+  width: 100%;
   padding: 0.5rem 1rem;
   padding-left: 2.5rem;
   border-radius: 0.5rem;
@@ -177,6 +180,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.25rem;
+  margin-right: 0.5rem;
 }
 
 .header-menu-btn:hover {
@@ -206,7 +210,7 @@
 /* Navigation Styles */
 .navigation {
   width: 200px;
-  background-color: rgb(255, 255, 246);
+  background:linear-gradient(#ffffff, #fff4bb 700px);
   border-right: 1px solid var(--color-gray-200);
   padding: 1rem 0;
   min-height: calc(100vh - 64px);
@@ -241,12 +245,12 @@
 }
 
 .navigation-link:hover {
-  background-color: var(--color-gray-50);
+  background-color: rgb(255, 230, 185);
   color: var(--color-primary-orange);
 }
 
 .navigation-link.active {
-  background-color: rgb(255, 249, 238);
+  background-color: rgb(255, 230, 185);
   color: var(--color-primary-orange);
   border-left-color: var(--color-primary-orange);
   font-weight: 600;
@@ -275,6 +279,10 @@
 }
 
 @media (max-width: 768px) {
+  .header-menu-btn {
+    display: inline-flex;
+  }
+
   .header-search-container {
     margin: 0 0.75rem;
   }

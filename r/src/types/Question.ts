@@ -10,6 +10,7 @@ export type Question = {
   author: UserProfile;
   authorId: string;
   votes: number;
+  repostCount?: number;
   answerCount: number;
   viewCount: number;
   createdAt: string;

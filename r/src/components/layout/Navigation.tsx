@@ -1,16 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Tag, Bookmark, Plus, Shield } from 'lucide-react'
 import { useAuth } from '../../customHooks/useAuth'
+import { useNav } from '../../context/NavContext'
 import clsx from 'clsx'
 
-type NavigationProps = {
-  isOpen: boolean
-  onNavigate: () => void
-}
-
-export default function Navigation({ isOpen, onNavigate }: NavigationProps) {
+export default function Navigation() {
   const location = useLocation()
   const { user } = useAuth()
+  const { isNavOpen, closeNav } = useNav()
 
   const links = [
     { path: '/', label: 'Home', icon: Home },
@@ -21,21 +18,21 @@ export default function Navigation({ isOpen, onNavigate }: NavigationProps) {
   const isActive = (path: string) => location.pathname === path
 
   return (
-    <nav className={clsx('navigation', isOpen ? 'open' : 'closed')}>
+    <nav className={clsx('navigation', isNavOpen ? 'open' : 'closed')}>
       <div className="navigation-list" style={{ display: 'flex', flexDirection: 'column' }}>
-        <Link to="/ask" className="navigation-ask-button" onClick={onNavigate}>
+        <Link to="/ask" className="navigation-ask-button" onClick={closeNav}>
           <Plus size={20} />
           Ask Question
         </Link>
 
-        <div style={{ paddingTop: '1rem' }}>
+        <div className='nav' style={{ paddingTop: '1rem' }}>
           {links.map((link) => {
             const Icon = link.icon
             return (
               <Link
                 key={link.path}
                 to={link.path}
-                onClick={onNavigate}
+                onClick={closeNav}
                 className={clsx(
                   'navigation-link',
                   isActive(link.path) && 'active'
@@ -56,7 +53,7 @@ export default function Navigation({ isOpen, onNavigate }: NavigationProps) {
           </h3>
           <Link
             to="/tags"
-            onClick={onNavigate}
+            onClick={closeNav}
             className="block px-4 py-2 text-gray-600 hover:text-blue-600 text-sm"
           >
             View All Tags →
@@ -72,7 +69,7 @@ export default function Navigation({ isOpen, onNavigate }: NavigationProps) {
               </h3>
               <Link
                 to="/admin"
-                onClick={onNavigate}
+                onClick={closeNav}
                 className={clsx(
                   'navigation-link',
                   isActive('/admin') && 'active'

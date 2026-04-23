@@ -43,7 +43,7 @@ export default function ExplorePage() {
       ] = await Promise.all([
         supabase
           .from('questions')
-          .select('id, title, body, user_id, view_count, created_at, updated_at')
+          .select('id, title, body, user_id, view_count, repost_count, created_at, updated_at')
           .order('created_at', { ascending: false })
           .limit(200),
         supabase
@@ -155,6 +155,7 @@ export default function ExplorePage() {
           author,
           authorId: question.user_id,
           votes: voteCountByQuestionId.get(question.id) || 0,
+          repostCount: question.repost_count || 0,
           answerCount: answerCountByQuestionId.get(question.id) || 0,
           viewCount: question.view_count || 0,
           createdAt: question.created_at,
@@ -344,14 +345,7 @@ export default function ExplorePage() {
             <div className="explore-page-filter-section">
               <p className="explore-page-filter-label">Question Status</p>
               <div className="explore-page-sort-list">
-                <label className="explore-page-sort-radio">
-                  <input
-                    type="checkbox"
-                    checked={onlyUnanswered}
-                    onChange={(e) => setOnlyUnanswered(e.target.checked)}
-                  />
-                  <span>Only unanswered</span>
-                </label>
+                
                 <label className="explore-page-sort-radio">
                   <input
                     type="checkbox"
@@ -400,6 +394,36 @@ export default function ExplorePage() {
             </div>
           )}
 
+{isLoading ? (
+            <div className="explore-page-loading">
+              <p>Loading...</p>
+            </div>
+          ) : error ? (
+            <div className="explore-page-empty">
+              <p className="explore-page-empty-title">Failed to load explore data</p>
+              <p className="explore-page-empty-subtitle">{error}</p>
+            </div>
+          ) : filteredQuestions.length === 0 ? (
+            <div className="explore-page-empty">
+              <p className="explore-page-empty-title">No questions found</p>
+              <p className="explore-page-empty-subtitle">
+                Try adjusting your filters or search terms
+              </p>
+            </div>
+          ) : (
+            <div className="explore-page-results">
+              <div className="explore-page-section-header">
+                <h2>Filtered Results</h2>
+                <p>{filteredQuestions.length} question(s)</p>
+              </div>
+              <div className="explore-page-questions">
+              {filteredQuestions.map((question) => (
+                <QuestionCard key={question.id} question={question} />
+              ))}
+              </div>
+            </div>
+          )}
+
           <section className="explore-page-trending">
             <div className="explore-page-section-header">
               <h2>Trending Questions</h2>
@@ -434,35 +458,7 @@ export default function ExplorePage() {
             </section>
           )}
 
-          {isLoading ? (
-            <div className="explore-page-loading">
-              <p>Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="explore-page-empty">
-              <p className="explore-page-empty-title">Failed to load explore data</p>
-              <p className="explore-page-empty-subtitle">{error}</p>
-            </div>
-          ) : filteredQuestions.length === 0 ? (
-            <div className="explore-page-empty">
-              <p className="explore-page-empty-title">No questions found</p>
-              <p className="explore-page-empty-subtitle">
-                Try adjusting your filters or search terms
-              </p>
-            </div>
-          ) : (
-            <div className="explore-page-results">
-              <div className="explore-page-section-header">
-                <h2>Filtered Results</h2>
-                <p>{filteredQuestions.length} question(s)</p>
-              </div>
-              <div className="explore-page-questions">
-              {filteredQuestions.map((question) => (
-                <QuestionCard key={question.id} question={question} />
-              ))}
-              </div>
-            </div>
-          )}
+          
         </main>
       </div>
     </div>
