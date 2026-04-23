@@ -1,10 +1,15 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Search, LogOut, User } from 'lucide-react'
+import { Search, LogOut, User, Shield, Menu, X } from 'lucide-react'
 import { useAuth } from '../../customHooks/useAuth'
 import { profileService } from '../../services/profileService'
 import { useState, useEffect } from 'react'
 
-export default function Header() {
+type HeaderProps = {
+  isNavOpen: boolean
+  onToggleNav: () => void
+}
+
+export default function Header({ isNavOpen, onToggleNav }: HeaderProps) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -63,7 +68,18 @@ export default function Header() {
   return (
     <header className="header">
       <div className="header-container">
+        
+
         <Link to="/" className="header-logo-link">
+        <button
+          type="button"
+          className="header-menu-btn"
+          onClick={onToggleNav}
+          aria-label={isNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={isNavOpen}
+        >
+          {isNavOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
           <div className="header-logo-icon">
             CF
           </div>
@@ -99,6 +115,15 @@ export default function Header() {
                   </div>
                 )}
               </Link>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="header-admin-btn"
+                  title="Admin Dashboard"
+                >
+                  <Shield size={20} />
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="header-logout-btn"

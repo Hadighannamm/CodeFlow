@@ -27,6 +27,7 @@ export default function QuestionDetailsPage() {
   const [question, setQuestion] = useState<Question | null>(null)
   const [answers, setAnswers] = useState<Answer[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
   const [isVoting, setIsVoting] = useState(false)
   const [voteCount, setVoteCount] = useState(0)
@@ -42,16 +43,20 @@ export default function QuestionDetailsPage() {
     const fetchQuestion = async () => {
       if (!id) {
         toast.error('Question ID not found')
+        setError('Question ID not found')
         setIsLoading(false)
         return
       }
 
       try {
+        setError(null)
         const fetchedQuestion = await questionSvc.getQuestionById(id)
         if (!fetchedQuestion) {
           toast.error('Question not found')
+          setError('Question not found')
         } else {
           setQuestion(fetchedQuestion)
+          setError(null)
 
           // Fetch actual vote count from database
           const actualVoteCount = await voteService.getVoteCount(id)

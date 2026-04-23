@@ -111,6 +111,50 @@ export async function signInWithEmail(email:string, password:string){
         }
     }
     
+    // Check account status after successful authentication
+    if (result.data.user) {
+        try {
+            const { data: userProfile, error: statusError } = await supabase
+                .from('users')
+                .select('status')
+                .eq('id', result.data.user.id)
+                .single();
+
+            if (statusError) {
+                console.warn('Error checking account status:', statusError);
+                // Continue if profile doesn't exist yet
+            }
+
+            // If account is suspended or banned, sign out and return error
+            if (userProfile?.status === 'suspended') {
+                await supabase.auth.signOut();
+                return {
+                    data: null,
+                    error: {
+                        message: 'Your account was suspended by the admin.',
+                        status: 403,
+                        code: 'account_suspended'
+                    }
+                };
+            }
+
+            if (userProfile?.status === 'banned') {
+                await supabase.auth.signOut();
+                return {
+                    data: null,
+                    error: {
+                        message: 'Your account has been banned.',
+                        status: 403,
+                        code: 'account_banned'
+                    }
+                };
+            }
+        } catch (err) {
+            console.warn('Error checking account status:', err);
+            // Continue with sign in if status check fails
+        }
+    }
+    
     return result;
 }
 

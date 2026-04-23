@@ -1,6 +1,6 @@
 /* QuestionCard Styles */
 .question-card {
-  background-color: var(--color-off-white);
+  background:linear-gradient( #fffcf0 70%, #fff7d0);
   border-radius: 0.5rem;
   border: 1px solid var(--color-gray-200);
   padding: 1rem;
