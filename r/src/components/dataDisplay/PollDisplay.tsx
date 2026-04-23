@@ -33,28 +33,17 @@ export default function PollDisplay({ poll: initialPoll, onVoteSuccess }: PollDi
       setHasVoted(true)
       setVotedOptionId(optionId)
       
-      // Wait a moment for database triggers to execute
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Immediately update the UI with the new vote count
+      // This ensures percentages update instantly without waiting for API refresh
+      const updatedOptions = poll.options.map((option) =>
+        option.id === optionId ? { ...option, votes: (option.votes || 0) + 1 } : option
+      )
+      const updatedPoll = { ...poll, options: updatedOptions }
+      setPoll(updatedPoll)
+      const newTotal = totalVotes + 1
+      setTotalVotes(newTotal)
       
-      // Refresh poll data to get updated vote counts
-      const pollResponse = await pollService.getPollByQuestionId(poll.questionId)
-      if (pollResponse?.data) {
-        console.log('Refreshed poll data:', pollResponse.data)
-        setPoll(pollResponse.data)
-        const newTotal = pollResponse.data.options.reduce((sum, option) => sum + (option.votes || 0), 0)
-        setTotalVotes(newTotal)
-        console.log('New total votes:', newTotal, 'Poll options:', pollResponse.data.options)
-      } else {
-        console.log('No poll response, using fallback')
-        // Fallback: manually increment the option votes
-        const updatedOptions = poll.options.map((option) =>
-          option.id === optionId ? { ...option, votes: (option.votes || 0) + 1 } : option
-        )
-        setPoll({ ...poll, options: updatedOptions })
-        const newTotal = totalVotes + 1
-        setTotalVotes(newTotal)
-        console.log('Fallback total votes:', newTotal)
-      }
+      console.log('Vote recorded - updated total votes:', newTotal, 'for option:', optionId)
       
       toast.success('Vote recorded!')
       onVoteSuccess?.()
