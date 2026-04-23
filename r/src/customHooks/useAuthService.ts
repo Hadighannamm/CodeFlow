@@ -60,7 +60,7 @@ export function useAuthService() {
 
     async getCurrentUser(): Promise<any> {
       try {
-        return await authService.getCuurentUser()
+        return await authService.getCurrentUser()
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch user'
         toast.error(message)

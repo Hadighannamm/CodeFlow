@@ -62,16 +62,6 @@ export function useAnswerService() {
       }
     },
 
-    async markAsAccepted(id: string): Promise<boolean> {
-      try {
-        await answerService.markAsAccepted(id)
-        toast.success('Answer marked as accepted!')
-        return true
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to mark answer as accepted'
-        toast.error(message)
-        return false
-      }
-    },
+
   }
 }
