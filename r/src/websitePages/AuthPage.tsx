@@ -10,20 +10,29 @@ export default function AuthPage() {
   const toast = useToast()
   const { user, loading, error, successMessage, signUp, signIn } = useAuth()
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/')
+    }
+  }, [user, navigate])
+
   // Show error toast when error changes
   useEffect(() => {
     if (error) {
+      console.log('Showing error toast:', error)
       toast.error(error)
     }
-  }, [error]) // Removed toast from dependencies since it's stable
+  }, [error, toast])
 
   // Show success toast when successMessage changes
   useEffect(() => {
-    if (successMessage) {
+    if (successMessage && user) {
+      // Only redirect on successful login/signup (when user is authenticated)
       toast.success(successMessage)
       setTimeout(() => navigate('/'), 2000)
     }
-  }, [successMessage, navigate]) // Removed toast from dependencies since it's stable
+  }, [successMessage, user, navigate]) // Added user to dependencies
 
   const handleSignUp = async (email: string, password: string, firstName: string = '', lastName: string = ''): Promise<boolean> => {
     const success = await signUp(email, password, firstName, lastName)
@@ -33,27 +42,6 @@ export default function AuthPage() {
   const handleSignIn = async (email: string, password: string): Promise<boolean> => {
     const success = await signIn(email, password)
     return success
-  }
-
-  if (user) {
-    return (
-      <div className="auth-page-bg">
-        <div className="auth-page-container">
-          <div className="auth-page-card">
-            <div className="auth-page-already-logged">
-              <h1>Already Logged In</h1>
-              <p>{user.email}</p>
-              <button
-                onClick={() => navigate('/')}
-                className="auth-page-btn"
-              >
-                Go Home
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (

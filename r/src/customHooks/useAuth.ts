@@ -7,6 +7,7 @@ import { getCurrentUser,
     signUpWithEmail,
     subscribeToAuthChanges
  } from "../services/authService";
+import { supabase } from "../lib/supabaseClient";
 
 function mapUser(user:{id:string; email?:string | null}|null):AppUser |null{
     if(!user) return null;
@@ -74,6 +75,30 @@ function useAuthLogic(): AuthContextType {
             subscription.unsubscribe()
         }
      } ,[])
+
+    // Load user role separately after user is authenticated
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const loadUserRole = async () => {
+            try {
+                const { data: profile, error } = await supabase
+                    .from('users')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!error && profile?.role) {
+                    setUser(prev => prev ? { ...prev, role: profile.role } : null);
+                }
+            } catch (err) {
+                console.warn('Failed to load user role:', err);
+                // Continue without role - not critical for auth flow
+            }
+        };
+
+        loadUserRole();
+    }, [user?.id])
       async function signUp(email:string, password:string, firstName: string = '', lastName: string = ''){
             setError("");
             setsuccessMessage("");
@@ -88,11 +113,15 @@ function useAuthLogic(): AuthContextType {
   async function signIn(email:string, password:string){
             setError("");
             setsuccessMessage("");
-            const {error} = await signInWithEmail(email,password);
-            if(error){
-                setError(error.message)
+            const result = await signInWithEmail(email,password);
+            
+            if(result.error){
+                const errorMessage = (result.error as any).message || 'Sign in failed. Please try again.';
+                console.log('Sign in error set to:', errorMessage);
+                setError(errorMessage);
                 return false;
             }
+            
             setsuccessMessage("Signed in successfully!")
             return true
         }
