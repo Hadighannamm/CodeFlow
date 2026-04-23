@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { CreateQuestionInput } from '../../types/Question'
+import { useToast } from '../../customHooks/useToast'
 import './QuestionForm.css'
 
 type QuestionFormProps = {
@@ -24,7 +25,7 @@ export default function QuestionForm({
   const [tagInput, setTagInput] = useState('')
   const [pollOptionInput, setPollOptionInput] = useState('')
   const [enablePoll, setEnablePoll] = useState(false)
-  const [error, setError] = useState('')
+  const toast = useToast()
 
   const handleAddTag = () => {
     if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
@@ -62,39 +63,35 @@ export default function QuestionForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!formData.title.trim()) {
-      setError('Title is required')
+      toast.warning('Title is required')
       return
     }
     if (!formData.body.trim()) {
-      setError('Description is required')
+      toast.warning('Description is required')
       return
     }
     if (formData.tags.length === 0) {
-      setError('At least one tag is required')
+      toast.warning('At least one tag is required')
       return
     }
     if (enablePoll && (!formData.pollOptions || formData.pollOptions.length < 2)) {
-      setError('Poll must have at least 2 options')
+      toast.warning('Poll must have at least 2 options')
       return
     }
 
     try {
       await onSubmit(formData)
+      toast.success('Question published successfully!')
     } catch (err) {
-      setError((err as Error).message || 'Failed to submit question')
+      const message = err instanceof Error ? err.message : 'Failed to submit question'
+      toast.error(message)
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="question-form">
-      {error && (
-        <div className="question-form-error">
-          {error}
-        </div>
-      )}
 
       {/* Title */}
       <div className="question-form-group">

@@ -1,25 +1,37 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthForm from '../components/forms/AuthForm'
 import { useAuth } from '../customHooks/useAuth'
+import { useToast } from '../customHooks/useToast'
 import '../styles/pages/AuthPage.css'
 
 export default function AuthPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const { user, loading, error, successMessage, signUp, signIn } = useAuth()
+
+  // Show error toast when error changes
+  useEffect(() => {
+    if (error) {
+      toast.error(error)
+    }
+  }, [error]) // Removed toast from dependencies since it's stable
+
+  // Show success toast when successMessage changes
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage)
+      setTimeout(() => navigate('/'), 2000)
+    }
+  }, [successMessage, navigate]) // Removed toast from dependencies since it's stable
 
   const handleSignUp = async (email: string, password: string, firstName: string = '', lastName: string = ''): Promise<boolean> => {
     const success = await signUp(email, password, firstName, lastName)
-    if (success) {
-      setTimeout(() => navigate('/'), 2000)
-    }
     return success
   }
 
   const handleSignIn = async (email: string, password: string): Promise<boolean> => {
     const success = await signIn(email, password)
-    if (success) {
-      setTimeout(() => navigate('/'), 2000)
-    }
     return success
   }
 
@@ -60,8 +72,6 @@ export default function AuthPage() {
           <AuthForm
             onSignUp={handleSignUp}
             onSignIn={handleSignIn}
-            error={error}
-            successMessage={successMessage}
             loading={loading}
           />
         </div>

@@ -12,6 +12,7 @@ import ProfilePage from "./websitePages/ProfilePage";
 import FavouritesPage from "./websitePages/FavouritesPage";
 import NotFoundPage from "./websitePages/NotFoundPage";
 import ErrorPage from "./websitePages/ErrorPage";
+import { ToastProvider } from "./context/ToastContext";
 
 const router = createBrowserRouter([
     {
@@ -38,5 +39,9 @@ const router = createBrowserRouter([
 ]);
 
 export default function AppRouter() {
-    return <RouterProvider router={router} />;
+    return (
+        <ToastProvider>
+            <RouterProvider router={router} />
+        </ToastProvider>
+    );
 }

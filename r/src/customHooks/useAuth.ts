@@ -1,7 +1,7 @@
 import { useEffect,useState, createContext, useContext, createElement } from "react";
 import type { ReactNode } from "react";
 import type { AppUser } from "../types/auth";
-import { getCuurentUser,
+import { getCurrentUser,
     signInWithEmail,
     signOutUser,
     signUpWithEmail,
@@ -55,7 +55,7 @@ function useAuthLogic(): AuthContextType {
         async function loadUser(){
             setLoading(true)
             setError("")
-            const {data,error} = await getCuurentUser();
+            const {data,error} = await getCurrentUser();
 
             if(error){
                 setError(error.message)
@@ -74,10 +74,10 @@ function useAuthLogic(): AuthContextType {
             subscription.unsubscribe()
         }
      } ,[])
-      async function signUp(email:string, passowrd:string, firstName: string = '', lastName: string = ''){
+      async function signUp(email:string, password:string, firstName: string = '', lastName: string = ''){
             setError("");
             setsuccessMessage("");
-            const {error} = await signUpWithEmail(email, passowrd, firstName, lastName);
+            const {error} = await signUpWithEmail(email, password, firstName, lastName);
             if(error){
                 setError(error.message)
                 return false;
@@ -85,15 +85,15 @@ function useAuthLogic(): AuthContextType {
             setsuccessMessage("Account Created!!!")
             return true
         }
-  async function signIn(email:string, passowrd:string){
+  async function signIn(email:string, password:string){
             setError("");
             setsuccessMessage("");
-            const {error} = await signInWithEmail(email,passowrd);
+            const {error} = await signInWithEmail(email,password);
             if(error){
                 setError(error.message)
                 return false;
             }
-            setsuccessMessage("Account Created!!!")
+            setsuccessMessage("Signed in successfully!")
             return true
         }
 

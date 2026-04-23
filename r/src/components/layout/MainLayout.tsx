@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Header from './Header'
 import Navigation from './Navigation'
+import ToastContainer from './ToastContainer'
 
 export default function MainLayout() {
   return (
@@ -12,6 +13,7 @@ export default function MainLayout() {
           <Outlet />
         </main>
       </div>
+      <ToastContainer />
     </div>
   )
 }

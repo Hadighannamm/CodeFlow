@@ -7,20 +7,26 @@ import AnswerForm from '../components/forms/AnswerForm'
 import AnswerItem from '../components/dataDisplay/AnswerItem'
 import VoteButton from '../components/dataDisplay/VoteButton'
 import PollDisplay from '../components/dataDisplay/PollDisplay'
-import { questionService } from '../services/questionService'
-import { answerService } from '../services/answerService'
-import { voteService } from '../services/voteService'
+import { useToast } from '../customHooks/useToast'
+import { useQuestionService } from '../customHooks/useQuestionService'
+import { useAnswerService } from '../customHooks/useAnswerService'
+import { useVoteService } from '../customHooks/useVoteService'
 import { useAuth } from '../customHooks/useAuth'
+import { voteService } from '../services/voteService'
 import { supabase } from '../lib/supabaseClient'
 
 export default function QuestionDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
+  const questionSvc = useQuestionService()
+  const answerSvc = useAnswerService()
+  const voteSvc = useVoteService()
+
   const [question, setQuestion] = useState<Question | null>(null)
   const [answers, setAnswers] = useState<Answer[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
   const [isVoting, setIsVoting] = useState(false)
   const [voteCount, setVoteCount] = useState(0)
@@ -35,20 +41,19 @@ export default function QuestionDetailsPage() {
   useEffect(() => {
     const fetchQuestion = async () => {
       if (!id) {
-        setError('Question ID not found')
+        toast.error('Question ID not found')
         setIsLoading(false)
         return
       }
 
       try {
-        const fetchedQuestion = await questionService.getQuestionById(id)
+        const fetchedQuestion = await questionSvc.getQuestionById(id)
         if (!fetchedQuestion) {
-          setError('Question not found')
+          toast.error('Question not found')
         } else {
           setQuestion(fetchedQuestion)
-          setError('')
 
-          // Fetch actual vote count from database (same as QuestionCard)
+          // Fetch actual vote count from database
           const actualVoteCount = await voteService.getVoteCount(id)
           setVoteCount(actualVoteCount)
           console.log('Actual vote count from DB:', actualVoteCount)
@@ -69,7 +74,6 @@ export default function QuestionDetailsPage() {
                   .from('questions')
                   .update({ view_count: newViewCount })
                   .eq('id', id)
-                console.log('View count incremented to:', newViewCount)
               }
             } catch (err) {
               console.error('Error incrementing view count:', err)
@@ -78,30 +82,27 @@ export default function QuestionDetailsPage() {
 
           // Fetch user's vote if logged in
           if (user) {
-            const userVoteData = await voteService.getUserVote(user.id, id)
+            const userVoteData = await voteSvc.getUserVote(user.id, id)
             if (userVoteData) {
               setUserVote(userVoteData.voteType === 1 ? 'up' : 'down')
             }
           }
 
           // Fetch answers
-          const fetchedAnswers = await answerService.getAnswersByQuestion(id)
+          const fetchedAnswers = await answerSvc.getAnswersByQuestion(id)
           setAnswers(fetchedAnswers)
         }
-      } catch (err) {
-        setError((err as Error).message || 'Failed to load question')
-        console.error('Error fetching question:', err)
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchQuestion()
-  }, [id, user])
+  }, [id, user, questionSvc, answerSvc, voteSvc, toast])
 
   const handleVote = async (voteType: 'up' | 'down') => {
     if (!user) {
-      alert('You must be logged in to vote')
+      toast.warning('You must be logged in to vote')
       return
     }
 
@@ -110,33 +111,39 @@ export default function QuestionDetailsPage() {
     setIsVoting(true)
     try {
       const voteTypeNum = voteType === 'up' ? 1 : -1
-      const existingVote = await voteService.getUserVote(user.id, id)
+      const existingVote = await voteSvc.getUserVote(user.id, id)
 
       if (existingVote) {
         // User has already voted
         if ((existingVote.voteType === 1 && voteType === 'up') || 
             (existingVote.voteType === -1 && voteType === 'down')) {
           // Remove the vote (toggle off)
-          await voteService.deleteVote(existingVote.id)
-          setVoteCount(voteCount - existingVote.voteType)
-          setUserVote(null)
+          const success = await voteSvc.deleteVote(existingVote.id)
+          if (success) {
+            setVoteCount(voteCount - existingVote.voteType)
+            setUserVote(null)
+          }
         } else {
           // Change the vote
           const oldVote = existingVote.voteType
-          await voteService.updateVote(existingVote.id, voteTypeNum)
-          setVoteCount(voteCount - oldVote + voteTypeNum)
-          setUserVote(voteType)
+          const updated = await voteSvc.updateVote(existingVote.id, voteTypeNum)
+          if (updated) {
+            setVoteCount(voteCount - oldVote + voteTypeNum)
+            setUserVote(voteType)
+          }
         }
       } else {
         // Create new vote
-        await voteService.createVote({
+        const newVote = await voteSvc.createVote({
           userId: user.id,
           targetId: id,
           targetType: 'question',
           voteType: voteTypeNum,
         })
-        setVoteCount(voteCount + voteTypeNum)
-        setUserVote(voteType)
+        if (newVote) {
+          setVoteCount(voteCount + voteTypeNum)
+          setUserVote(voteType)
+        }
       }
 
       // Update the question's vote count in state
@@ -146,9 +153,6 @@ export default function QuestionDetailsPage() {
           votes: voteCount + (voteTypeNum - (userVote === 'up' ? 1 : userVote === 'down' ? -1 : 0)),
         })
       }
-    } catch (err) {
-      console.error('Error voting:', err)
-      alert('Failed to record vote. Please try again.')
     } finally {
       setIsVoting(false)
     }
@@ -172,33 +176,31 @@ export default function QuestionDetailsPage() {
 
   const handleAnswerSubmit = async (body: string) => {
     if (!user || !id) {
-      alert('You must be logged in to answer')
+      toast.warning('You must be logged in to answer')
       return
     }
 
     setIsSubmittingAnswer(true)
-    setError('')
 
     try {
-      const newAnswer = await answerService.createAnswer({
+      const newAnswer = await answerSvc.createAnswer({
         body,
         questionId: id,
         userId: user.id,
       })
 
-      // Add the new answer to the list
-      setAnswers((prev) => [...prev, newAnswer])
+      if (newAnswer) {
+        // Add the new answer to the list
+        setAnswers((prev) => [...prev, newAnswer])
 
-      // Update the question's answer count
-      if (question) {
-        setQuestion({
-          ...question,
-          answerCount: question.answerCount + 1,
-        })
+        // Update the question's answer count
+        if (question) {
+          setQuestion({
+            ...question,
+            answerCount: question.answerCount + 1,
+          })
+        }
       }
-    } catch (err) {
-      console.error('Error submitting answer:', err)
-      setError(`Failed to submit answer: ${(err as Error).message || 'Unknown error'}`)
     } finally {
       setIsSubmittingAnswer(false)
     }

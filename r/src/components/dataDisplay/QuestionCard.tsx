@@ -3,9 +3,11 @@ import { Eye, Bookmark } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { Question } from '../../types/Question'
 import VoteButton from './VoteButton'
-import { voteService } from '../../services/voteService'
-import { savedQuestionService } from '../../services/savedQuestionService'
+import { useToast } from '../../customHooks/useToast'
+import { useVoteService } from '../../customHooks/useVoteService'
+import { useSavedQuestionService } from '../../customHooks/useSavedQuestionService'
 import { useAuth } from '../../customHooks/useAuth'
+import { voteService } from '../../services/voteService'
 import '../../styles/components/QuestionCard.css'
 
 type QuestionCardProps = {
@@ -15,6 +17,10 @@ type QuestionCardProps = {
 
 export default function QuestionCard({ question, onVoteChange }: QuestionCardProps) {
   const { user } = useAuth()
+  const toast = useToast()
+  const voteSvc = useVoteService()
+  const savedSvc = useSavedQuestionService()
+
   const [voteCount, setVoteCount] = useState(question.votes)
   const [viewCount, setViewCount] = useState(question.viewCount)
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
@@ -33,13 +39,13 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
 
         // Fetch user's vote if logged in
         if (user) {
-          const existingVote = await voteService.getUserVote(user.id, question.id)
+          const existingVote = await voteSvc.getUserVote(user.id, question.id)
           if (existingVote) {
             setUserVote(existingVote.voteType === 1 ? 'up' : 'down')
           }
 
           // Check if question is saved
-          const saved = await savedQuestionService.isSavedQuestion(user.id, question.id)
+          const saved = await savedSvc.isQuestionSaved(user.id, question.id)
           setIsSaved(saved)
         }
       } catch (err) {
@@ -47,11 +53,11 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
       }
     }
     fetchData()
-  }, [user, question.id])
+  }, [user, question.id, voteSvc, savedSvc])
 
   const handleVote = async (voteType: 'up' | 'down') => {
     if (!user) {
-      alert('You must be logged in to vote')
+      toast.warning('You must be logged in to vote')
       return
     }
 
@@ -65,7 +71,7 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
       const voteTypeNum = voteType === 'up' ? 1 : -1
       console.log('Voting:', { userId: user.id, targetId: question.id, voteTypeNum, currentVoteCount: voteCount, currentUserVote: userVote })
       
-      const existingVote = await voteService.getUserVote(user.id, question.id)
+      const existingVote = await voteSvc.getUserVote(user.id, question.id)
       console.log('Existing vote:', existingVote)
 
       let newCount = voteCount
@@ -76,33 +82,37 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
             (existingVote.voteType === -1 && voteType === 'down')) {
           // Remove the vote (toggle off)
           console.log('Removing vote')
-          await voteService.deleteVote(existingVote.id)
-          // When removing a vote, subtract the vote value from the count
-          newCount = voteCount - existingVote.voteType
-          console.log('After removal:', { oldCount: voteCount, newCount, voteTypeRemoved: existingVote.voteType })
-          setUserVote(null)
+          const success = await voteSvc.deleteVote(existingVote.id)
+          if (success) {
+            newCount = voteCount - existingVote.voteType
+            console.log('After removal:', { oldCount: voteCount, newCount, voteTypeRemoved: existingVote.voteType })
+            setUserVote(null)
+          }
         } else {
           // Change the vote from up to down or vice versa
           console.log('Changing vote')
           const oldVote = existingVote.voteType
-          await voteService.updateVote(existingVote.id, voteTypeNum)
-          // Remove old vote value and add new vote value
-          newCount = voteCount - oldVote + voteTypeNum
-          console.log('After change:', { oldCount: voteCount, newCount, oldVote, newVote: voteTypeNum })
-          setUserVote(voteType)
+          const updated = await voteSvc.updateVote(existingVote.id, voteTypeNum)
+          if (updated) {
+            newCount = voteCount - oldVote + voteTypeNum
+            console.log('After change:', { oldCount: voteCount, newCount, oldVote, newVote: voteTypeNum })
+            setUserVote(voteType)
+          }
         }
       } else {
         // Create new vote
         console.log('Creating new vote')
-        await voteService.createVote({
+        const newVote = await voteSvc.createVote({
           userId: user.id,
           targetId: question.id,
           targetType: 'question',
           voteType: voteTypeNum,
         })
-        newCount = voteCount + voteTypeNum
-        console.log('After creation:', { oldCount: voteCount, newCount, newVote: voteTypeNum })
-        setUserVote(voteType)
+        if (newVote) {
+          newCount = voteCount + voteTypeNum
+          console.log('After creation:', { oldCount: voteCount, newCount, newVote: voteTypeNum })
+          setUserVote(voteType)
+        }
       }
 
       // Verify the new count is a valid number
@@ -113,9 +123,6 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
 
       setVoteCount(newCount)
       onVoteChange?.(newCount)
-    } catch (err) {
-      console.error('Error voting:', err)
-      alert('Failed to record vote. Please try again.')
     } finally {
       setIsVoting(false)
     }
@@ -126,22 +133,23 @@ export default function QuestionCard({ question, onVoteChange }: QuestionCardPro
     e.stopPropagation()
 
     if (!user) {
-      alert('You must be logged in to save questions')
+      toast.warning('You must be logged in to save questions')
       return
     }
 
     setIsSaving(true)
     try {
       if (isSaved) {
-        await savedQuestionService.removeSavedQuestion(user.id, question.id)
-        setIsSaved(false)
+        const success = await savedSvc.unsaveQuestion(user.id, question.id)
+        if (success) {
+          setIsSaved(false)
+        }
       } else {
-        await savedQuestionService.saveQuestion(user.id, question.id)
-        setIsSaved(true)
+        const success = await savedSvc.saveQuestion(user.id, question.id)
+        if (success) {
+          setIsSaved(true)
+        }
       }
-    } catch (err) {
-      console.error('Error saving question:', err)
-      alert('Failed to save question. Please try again.')
     } finally {
       setIsSaving(false)
     }

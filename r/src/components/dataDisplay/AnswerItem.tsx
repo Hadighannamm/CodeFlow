@@ -2,7 +2,8 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import type { Answer } from '../../types/Answer'
 import VoteButton from './VoteButton'
-import { voteService } from '../../services/voteService'
+import { useVoteService } from '../../customHooks/useVoteService'
+import { useToast } from '../../customHooks/useToast'
 import { useAuth } from '../../customHooks/useAuth'
 
 type AnswerItemProps = {
@@ -17,13 +18,15 @@ export default function AnswerItem({
   onVoteChange,
 }: AnswerItemProps) {
   const { user } = useAuth()
+  const toast = useToast()
+  const voteService = useVoteService()
   const [voteCount, setVoteCount] = useState(answer.votes)
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
   const [isVoting, setIsVoting] = useState(false)
 
   const handleVote = async (voteType: 'up' | 'down') => {
     if (!user) {
-      alert('You must be logged in to vote')
+      toast.warning('You must be logged in to vote')
       return
     }
 
@@ -39,33 +42,36 @@ export default function AnswerItem({
         if ((existingVote.voteType === 1 && voteType === 'up') || 
             (existingVote.voteType === -1 && voteType === 'down')) {
           // Remove the vote (toggle off)
-          await voteService.deleteVote(existingVote.id)
-          newCount = voteCount - existingVote.voteType
-          setUserVote(null)
+          const success = await voteService.deleteVote(existingVote.id)
+          if (success) {
+            newCount = voteCount - existingVote.voteType
+            setUserVote(null)
+          }
         } else {
           // Change the vote
           const oldVote = existingVote.voteType
-          await voteService.updateVote(existingVote.id, voteTypeNum)
-          newCount = voteCount - oldVote + voteTypeNum
-          setUserVote(voteType)
+          const updated = await voteService.updateVote(existingVote.id, voteTypeNum)
+          if (updated) {
+            newCount = voteCount - oldVote + voteTypeNum
+            setUserVote(voteType)
+          }
         }
       } else {
         // Create new vote
-        await voteService.createVote({
+        const newVote = await voteService.createVote({
           userId: user.id,
           targetId: answer.id,
           targetType: 'answer',
           voteType: voteTypeNum,
         })
-        newCount = voteCount + voteTypeNum
-        setUserVote(voteType)
+        if (newVote) {
+          newCount = voteCount + voteTypeNum
+          setUserVote(voteType)
+        }
       }
 
       setVoteCount(newCount)
       onVoteChange?.(answer.id, newCount)
-    } catch (err) {
-      console.error('Error voting:', err)
-      alert('Failed to record vote. Please try again.')
     } finally {
       setIsVoting(false)
     }

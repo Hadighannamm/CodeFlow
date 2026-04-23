@@ -45,18 +45,28 @@ export async function signInWithEmail(email:string, password:string){
     const result = await supabase.auth.signInWithPassword({
         email,password
     });
-    
-    // Handle email not confirmed error
-    if (result.error?.message.includes('Email not confirmed')) {
-        return {
-            error: {
-                message: 'Please confirm your email first. Check your inbox for the confirmation link.',
-                status: 400
-            }
-        };
-    }
-    
+
+    // Handle specific error cases
     if (result.error) {
+        if (result.error.message.includes('Email not confirmed')) {
+            return {
+                error: {
+                    message: 'Please confirm your email first. Check your inbox for the confirmation link.',
+                    status: 400
+                }
+            };
+        }
+
+        if (result.error.message.includes('Invalid login credentials')) {
+            return {
+                error: {
+                    message: 'Invalid email or password. Please check your credentials and try again.',
+                    status: 400
+                }
+            };
+        }
+
+        // Return the original error for other cases
         return result;
     }
     
@@ -64,15 +74,20 @@ export async function signInWithEmail(email:string, password:string){
     if (result.data.user) {
         try {
             // Check if user profile exists
-            const { data: existingUser } = await supabase
+            const { data: existingUser, error: checkError } = await supabase
                 .from('users')
                 .select('id')
                 .eq('id', result.data.user.id)
                 .single();
-            
-            // Only create if doesn't exist
-            if (!existingUser) {
-                await supabase
+
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+                console.warn('Error checking user profile:', checkError);
+                // Continue anyway - profile check is not critical for login
+            }
+
+            // Only create if doesn't exist and no error
+            if (!existingUser && !checkError) {
+                const { error: insertError } = await supabase
                     .from('users')
                     .insert({
                         id: result.data.user.id,
@@ -84,10 +99,15 @@ export async function signInWithEmail(email:string, password:string){
                         bio: '',
                         avatar_url: null,
                     });
+
+                if (insertError) {
+                    console.warn('Error creating user profile during sign in:', insertError);
+                    // Don't fail the sign in, just log the error
+                }
             }
         } catch (error) {
-            // Profile might exist, continue anyway
-            console.log('Profile check complete');
+            console.warn('Profile management error during sign in:', error);
+            // Continue with sign in even if profile operations fail
         }
     }
     
@@ -98,7 +118,7 @@ export async function signOutUser(){
     return await supabase.auth.signOut();
 }
 
-export async function getCuurentUser(){
+export async function getCurrentUser(){
     return await supabase.auth.getUser();
 }
 

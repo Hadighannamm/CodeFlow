@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Mail, Lock } from 'lucide-react'
+import { useToast } from '../../customHooks/useToast'
 import '../../styles/components/AuthForm.css'
 
 type AuthMode = 'login' | 'signup'
@@ -7,16 +8,12 @@ type AuthMode = 'login' | 'signup'
 type AuthFormProps = {
   onSignUp: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>
   onSignIn: (email: string, password: string) => Promise<boolean>
-  error: string
-  successMessage: string
   loading: boolean
 }
 
 export default function AuthForm({
   onSignUp,
   onSignIn,
-  error,
-  successMessage,
   loading,
 }: AuthFormProps) {
   const [mode, setMode] = useState<AuthMode>('login')
@@ -27,6 +24,7 @@ export default function AuthForm({
     firstName: '',
     lastName: '',
   })
+  const toast = useToast()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -37,38 +35,51 @@ export default function AuthForm({
     e.preventDefault()
 
     if (mode === 'login') {
+      if (!formData.email.trim()) {
+        toast.warning('Please enter your email')
+        return
+      }
+      if (!formData.password.trim()) {
+        toast.warning('Please enter your password')
+        return
+      }
       await onSignIn(formData.email, formData.password)
     } else {
+      if (!formData.email.trim()) {
+        toast.warning('Please enter your email')
+        return
+      }
+      if (!formData.firstName.trim()) {
+        toast.warning('Please enter your first name')
+        return
+      }
+      if (!formData.lastName.trim()) {
+        toast.warning('Please enter your last name')
+        return
+      }
+      if (!formData.password.trim()) {
+        toast.warning('Please enter a password')
+        return
+      }
       if (formData.password !== formData.confirmPassword) {
+        toast.warning('Passwords do not match')
         return
       }
       await onSignUp(formData.email, formData.password, formData.firstName, formData.lastName)
     }
     
-    if (!error) {
-      setFormData({
-        email: '',
-        password: '',
-        confirmPassword: '',
-        firstName: '',
-        lastName: '',
-      })
-    }
+    // Clear form after successful submission (auth hook will handle the redirect)
+    setFormData({
+      email: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+    })
   }
 
   return (
     <form onSubmit={handleSubmit} className="auth-form-container">
-      {error && (
-        <div className="auth-form-error">
-          {error}
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="auth-form-success">
-          {successMessage}
-        </div>
-      )}
 
       <div className="auth-form-group">
         <label className="auth-form-label">

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Poll } from '../../types/Poll'
+import { useToast } from '../../customHooks/useToast'
 import { useAuth } from '../../customHooks/useAuth'
 import { pollService } from '../../services/pollService'
 import '../../styles/components/PollDisplay.css'
@@ -11,6 +12,7 @@ interface PollDisplayProps {
 
 export default function PollDisplay({ poll: initialPoll, onVoteSuccess }: PollDisplayProps) {
   const { user } = useAuth()
+  const toast = useToast()
   const [poll, setPoll] = useState(initialPoll)
   const [hasVoted, setHasVoted] = useState(false)
   const [votedOptionId, setVotedOptionId] = useState<string | null>(null)
@@ -54,11 +56,11 @@ export default function PollDisplay({ poll: initialPoll, onVoteSuccess }: PollDi
         console.log('Fallback total votes:', newTotal)
       }
       
+      toast.success('Vote recorded!')
       onVoteSuccess?.()
     } catch (error) {
-      console.error('Error voting:', error)
-      alert('Failed to vote on poll. You may have already voted.')
-      setIsVoting(false)
+      const message = error instanceof Error ? error.message : 'Failed to vote on poll. You may have already voted.'
+      toast.error(message)
     } finally {
       setIsVoting(false)
     }

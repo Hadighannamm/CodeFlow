@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from '../../customHooks/useToast'
 
 type AnswerFormProps = {
   onSubmit: (body: string) => Promise<void>
@@ -10,32 +11,28 @@ export default function AnswerForm({
   isLoading = false,
 }: AnswerFormProps) {
   const [body, setBody] = useState('')
-  const [error, setError] = useState('')
+  const toast = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!body.trim()) {
-      setError('Please provide an answer')
+      toast.warning('Please provide an answer')
       return
     }
 
     try {
       await onSubmit(body)
       setBody('')
+      toast.success('Answer posted successfully!')
     } catch (err) {
-      setError((err as Error).message || 'Failed to submit answer')
+      const message = err instanceof Error ? err.message : 'Failed to submit answer'
+      toast.error(message)
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
