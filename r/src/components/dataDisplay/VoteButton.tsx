@@ -22,33 +22,18 @@ export default function VoteButton({
     <button
       onClick={() => onVote(voteType)}
       disabled={isLoading}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        backgroundColor: 'transparent',
-        border: 'none',
-        padding: 0,
-        cursor: isLoading ? 'not-allowed' : 'pointer',
-        color: isActive
-          ? voteType === 'up'
-            ? '#16a34a'
-            : '#dc2626'
-          : '#4b5563',
-        opacity: isLoading ? 0.5 : 1,
-        transition: 'color 0.2s',
-        outline: 'none',
-      }}
-    >
-      {voteType === 'up' && (
-        <span className="text-sm font-semibold">{count}</span>
+      className={clsx(
+        'question-card-vote-btn',
+        voteType === 'up' ? 'vote-up' : 'vote-down',
+        isActive && 'active'
       )}
+    >
+      <span className="question-card-vote-count">{count}</span>
       {voteType === 'up' ? (
         <ThumbsUp size={18} />
       ) : (
         <ThumbsDown size={18} />
       )}
-      
     </button>
   )
 }

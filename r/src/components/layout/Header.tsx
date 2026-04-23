@@ -1,11 +1,14 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Search, LogOut, User } from 'lucide-react'
+import { Search, LogOut, User, Shield, Menu, X } from 'lucide-react'
 import { useAuth } from '../../customHooks/useAuth'
+import { useNav } from '../../context/NavContext'
 import { profileService } from '../../services/profileService'
 import { useState, useEffect } from 'react'
+import codeflowLogo from '../../assets/logo.png'
 
 export default function Header() {
   const { user, signOut } = useAuth()
+  const { isNavOpen, toggleNav } = useNav()
   const navigate = useNavigate()
   const location = useLocation()
   const isAuthenticated = !!user
@@ -46,7 +49,7 @@ export default function Header() {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setSearchInput(value)
-    
+
     // Update URL with search query
     if (value.trim()) {
       navigate(`/?search=${encodeURIComponent(value)}`)
@@ -63,13 +66,24 @@ export default function Header() {
   return (
     <header className="header">
       <div className="header-container">
-        <Link to="/" className="header-logo-link">
-          <div className="header-logo-icon">
-            CF
-          </div>
-          <span className="header-logo-text">CodeFlow</span>
-        </Link>
+        <div className="btn-logo">
+          <button
+            type="button"
+            className="header-menu-btn"
+            onClick={toggleNav}
+            aria-label={isNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isNavOpen}
+          >
+            {isNavOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
 
+          <Link to="/" className="header-logo-link">
+            <div className="header-logo-icon">
+              <img src={codeflowLogo} alt="CodeFlow logo" className="header-logo-image" />
+            </div>
+            <span className="header-logo-text">CodeFlow</span>
+          </Link>
+        </div>
         <div className="header-search-container">
           <div className="header-search-wrapper">
             <Search className="header-search-icon" size={20} />
@@ -99,6 +113,15 @@ export default function Header() {
                   </div>
                 )}
               </Link>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="header-admin-btn"
+                  title="Admin Dashboard"
+                >
+                  <Shield size={20} />
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="header-logout-btn"

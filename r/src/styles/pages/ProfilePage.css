@@ -342,6 +342,10 @@
   gap: 1rem;
 }
 
+.profile-recent-cards .question-card {
+  margin: 0;
+}
+
 .profile-question-item {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--color-gray-200);

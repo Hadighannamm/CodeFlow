@@ -7,6 +7,7 @@ import { getCurrentUser,
     signUpWithEmail,
     subscribeToAuthChanges
  } from "../services/authService";
+import { supabase } from "../lib/supabaseClient";
 
 function mapUser(user:{id:string; email?:string | null}|null):AppUser |null{
     if(!user) return null;
@@ -14,6 +15,14 @@ function mapUser(user:{id:string; email?:string | null}|null):AppUser |null{
         id:user.id,
         email: user.email ?? null
     }
+}
+
+function mergeUserPreservingRole(nextUser: AppUser | null, previousUser: AppUser | null): AppUser | null {
+    if (!nextUser) return null;
+    if (previousUser?.id === nextUser.id && previousUser.role) {
+        return { ...nextUser, role: previousUser.role };
+    }
+    return nextUser;
 }
 
 type AuthContextType = {
@@ -62,18 +71,42 @@ function useAuthLogic(): AuthContextType {
                 setLoading(false)
                 return
             }
-            setUser(mapUser(data.user))
+            setUser((prev) => mergeUserPreservingRole(mapUser(data.user), prev))
             setLoading(false)
         }
         loadUser();
         const {data: {subscription},} = subscribeToAuthChanges((_event,session)=>{
-            setUser(mapUser(session?.user??null));
+            setUser((prev) => mergeUserPreservingRole(mapUser(session?.user??null), prev));
         })
 
         return()=>{
             subscription.unsubscribe()
         }
      } ,[])
+
+    // Load user role separately after user is authenticated
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const loadUserRole = async () => {
+            try {
+                const { data: profile, error } = await supabase
+                    .from('users')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!error && profile?.role) {
+                    setUser(prev => prev ? { ...prev, role: profile.role } : null);
+                }
+            } catch (err) {
+                console.warn('Failed to load user role:', err);
+                // Continue without role - not critical for auth flow
+            }
+        };
+
+        loadUserRole();
+    }, [user?.id])
       async function signUp(email:string, password:string, firstName: string = '', lastName: string = ''){
             setError("");
             setsuccessMessage("");
@@ -88,11 +121,15 @@ function useAuthLogic(): AuthContextType {
   async function signIn(email:string, password:string){
             setError("");
             setsuccessMessage("");
-            const {error} = await signInWithEmail(email,password);
-            if(error){
-                setError(error.message)
+            const result = await signInWithEmail(email,password);
+            
+            if(result.error){
+                const errorMessage = (result.error as any).message || 'Sign in failed. Please try again.';
+                console.log('Sign in error set to:', errorMessage);
+                setError(errorMessage);
                 return false;
             }
+            
             setsuccessMessage("Signed in successfully!")
             return true
         }

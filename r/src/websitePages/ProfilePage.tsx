@@ -1,18 +1,11 @@
 import { useState, useEffect } from 'react'
-import { User, Trash2 } from 'lucide-react'
+import { User } from 'lucide-react'
 import { useAuth } from '../customHooks/useAuth'
 import { profileService } from '../services/profileService'
-import { questionService } from '../services/questionService'
 import type { UserProfile } from '../types/UserProfile'
+import type { Question } from '../types/Question'
+import QuestionCard from '../components/dataDisplay/QuestionCard'
 import '../styles/pages/ProfilePage.css'
-
-interface UserQuestion {
-  id: string
-  title: string
-  body: string
-  created_at: string
-  updated_at: string
-}
 
 export default function ProfilePage() {
   const { user: authUser } = useAuth()
@@ -23,7 +16,7 @@ export default function ProfilePage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [questionsCount, setQuestionsCount] = useState(0)
   const [answersCount, setAnswersCount] = useState(0)
-  const [userQuestions, setUserQuestions] = useState<UserQuestion[]>([])
+  const [userQuestions, setUserQuestions] = useState<Question[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -65,7 +58,7 @@ export default function ProfilePage() {
 
       // Fetch recent questions
       setIsLoadingQuestions(true)
-      const questions = await profileService.getUserQuestions(authUser.id, 5)
+      const questions = await profileService.getUserRecentQuestions(authUser.id, 5)
       setUserQuestions(questions)
       setIsLoadingQuestions(false)
 
@@ -135,24 +128,6 @@ export default function ProfilePage() {
     setIsEditing(false)
     setError(null)
     setIsSaving(false)
-  }
-
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
-      return
-    }
-
-    try {
-      await questionService.deleteQuestion(questionId)
-      // Remove the question from the local state
-      setUserQuestions((prev) => prev.filter((q) => q.id !== questionId))
-      // Update the count
-      setQuestionsCount((prev) => Math.max(0, prev - 1))
-      setError(null)
-    } catch (err) {
-      console.error('Error deleting question:', err)
-      setError(`Failed to delete question: ${(err as Error).message || 'Unknown error'}`)
-    }
   }
 
   if (isLoadingProfile) {
@@ -361,42 +336,9 @@ export default function ProfilePage() {
           {isLoadingQuestions ? (
             <p className="profile-empty-message">Loading...</p>
           ) : userQuestions.length > 0 ? (
-            <div className="profile-activity-list">
+            <div className="profile-activity-list profile-recent-cards">
               {userQuestions.map((q) => (
-                <div key={q.id} className="profile-question-item">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <h4 className="profile-question-title">
-                        {q.title}
-                      </h4>
-                      <div className="profile-question-meta">
-                        <span>{new Date(q.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteQuestion(q.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        backgroundColor: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: '0.375rem',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        transition: 'background-color 0.2s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ef4444')}
-                    >
-                      <Trash2 size={16} />
-                      Delete
-                    </button>
-                  </div>
-                </div>
+                <QuestionCard key={q.id} question={q} />
               ))}
             </div>
           ) : (

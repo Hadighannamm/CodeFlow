@@ -10,6 +10,7 @@ import TagsPage from "./websitePages/TagsPage";
 import TagDetailsPage from "./websitePages/TagDetailsPage";
 import ProfilePage from "./websitePages/ProfilePage";
 import FavouritesPage from "./websitePages/FavouritesPage";
+import AdminDashboard from "./websitePages/AdminDashboard";
 import NotFoundPage from "./websitePages/NotFoundPage";
 import ErrorPage from "./websitePages/ErrorPage";
 import { ToastProvider } from "./context/ToastContext";
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
             { path: "tags/:tag", element: <TagDetailsPage /> },
             { path: "profile", element: <ProfilePage /> },
             { path: "favourites", element: <FavouritesPage /> },
+            { path: "admin", element: <AdminDashboard /> },
             { path: "*", element: <NotFoundPage /> },
         ],
     },

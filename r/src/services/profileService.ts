@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 import type { UserProfile } from '../types/UserProfile'
+import type { Question } from '../types/Question'
 
 export const profileService = {
   // Fetch user profile by ID
@@ -265,6 +266,181 @@ export const profileService = {
       return data || []
     } catch (error) {
       console.error('Error in getUserQuestions:', error instanceof Error ? error.message : String(error))
+      return []
+    }
+  },
+
+  async getUserRecentQuestions(userId: string, limit: number = 5): Promise<Question[]> {
+    try {
+      const [{ data: ownQuestions }, { data: repostRows }] = await Promise.all([
+        supabase
+          .from('questions')
+          .select('id, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('question_reposts')
+          .select('question_id, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ])
+
+      const activity = [
+        ...(ownQuestions || []).map((question: any) => ({
+          questionId: question.id,
+          activityAt: question.created_at,
+        })),
+        ...(repostRows || []).map((row: any) => ({
+          questionId: row.question_id,
+          activityAt: row.created_at,
+        })),
+      ]
+
+      if (activity.length === 0) {
+        return []
+      }
+
+      const latestByQuestionId = new Map<string, string>()
+      for (const item of activity) {
+        const existing = latestByQuestionId.get(item.questionId)
+        if (!existing || new Date(item.activityAt).getTime() > new Date(existing).getTime()) {
+          latestByQuestionId.set(item.questionId, item.activityAt)
+        }
+      }
+
+      const orderedQuestionIds = Array.from(latestByQuestionId.entries())
+        .sort((a, b) => new Date(b[1]).getTime() - new Date(a[1]).getTime())
+        .slice(0, limit)
+        .map(([questionId]) => questionId)
+
+      if (orderedQuestionIds.length === 0) {
+        return []
+      }
+
+      const { data: questions, error: questionsError } = await supabase
+        .from('questions')
+        .select('id, title, body, user_id, view_count, repost_count, created_at, updated_at')
+        .in('id', orderedQuestionIds)
+
+      if (questionsError || !questions) {
+        console.error('Error fetching recent question rows:', questionsError)
+        return []
+      }
+
+      const authorIds = Array.from(new Set(questions.map((question: any) => question.user_id)))
+
+      const [usersResult, tagsResult, votesResult, answersResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id, username, email, first_name, last_name, reputation, bio, avatar_url, created_at, updated_at')
+          .in('id', authorIds),
+        supabase
+          .from('question_tags')
+          .select('question_id, tags(id, name)')
+          .in('question_id', orderedQuestionIds),
+        supabase
+          .from('votes')
+          .select('target_id, vote_type')
+          .eq('target_type', 'question')
+          .in('target_id', orderedQuestionIds),
+        supabase
+          .from('answers')
+          .select('question_id')
+          .in('question_id', orderedQuestionIds),
+      ])
+
+      if (usersResult.error || tagsResult.error || votesResult.error || answersResult.error) {
+        console.error('Error hydrating recent questions:', {
+          usersError: usersResult.error,
+          tagsError: tagsResult.error,
+          votesError: votesResult.error,
+          answersError: answersResult.error,
+        })
+        return []
+      }
+
+      const authorMap = new Map(
+        (usersResult.data || []).map((u: any) => [
+          u.id,
+          {
+            id: u.id,
+            username: u.username || 'Unknown',
+            email: u.email || '',
+            firstName: u.first_name || '',
+            lastName: u.last_name || '',
+            reputation: u.reputation || 0,
+            bio: u.bio || '',
+            avatarUrl: u.avatar_url,
+            createdAt: u.created_at,
+            updatedAt: u.updated_at,
+          },
+        ])
+      )
+
+      const tagsByQuestionId = new Map<string, Array<{ id: string; name: string; count: number }>>()
+      for (const row of tagsResult.data || []) {
+        const list = tagsByQuestionId.get((row as any).question_id) || []
+        const tag = (row as any).tags
+        if (tag?.id && tag?.name) {
+          list.push({ id: tag.id, name: tag.name, count: 0 })
+        }
+        tagsByQuestionId.set((row as any).question_id, list)
+      }
+
+      const voteCountByQuestionId = new Map<string, number>()
+      for (const vote of votesResult.data || []) {
+        const key = (vote as any).target_id
+        const value = Number((vote as any).vote_type) || 0
+        voteCountByQuestionId.set(key, (voteCountByQuestionId.get(key) || 0) + value)
+      }
+
+      const answerCountByQuestionId = new Map<string, number>()
+      for (const answer of answersResult.data || []) {
+        const key = (answer as any).question_id
+        answerCountByQuestionId.set(key, (answerCountByQuestionId.get(key) || 0) + 1)
+      }
+
+      const questionMap = new Map(
+        questions.map((question: any) => [
+          question.id,
+          {
+            id: question.id,
+            title: question.title,
+            body: question.body,
+            tags: tagsByQuestionId.get(question.id) || [],
+            author:
+              authorMap.get(question.user_id) || {
+                id: question.user_id,
+                username: 'Unknown',
+                email: '',
+                firstName: '',
+                lastName: '',
+                reputation: 0,
+                bio: '',
+                avatarUrl: undefined,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            authorId: question.user_id,
+            votes: voteCountByQuestionId.get(question.id) || 0,
+            repostCount: question.repost_count || 0,
+            answerCount: answerCountByQuestionId.get(question.id) || 0,
+            viewCount: question.view_count || 0,
+            createdAt: question.created_at,
+            updatedAt: question.updated_at,
+          } as Question,
+        ])
+      )
+
+      const orderedQuestions = orderedQuestionIds
+        .map((questionId) => questionMap.get(questionId))
+        .filter(Boolean) as Question[]
+
+      return orderedQuestions
+    } catch (error) {
+      console.error('Error in getUserRecentQuestions:', error)
       return []
     }
   },

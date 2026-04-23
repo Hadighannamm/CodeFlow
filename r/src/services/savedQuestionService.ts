@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 import type { Question } from '../types/Question'
+import { reputationService } from './reputationService'
 
 export const savedQuestionService = {
   async saveQuestion(userId: string, questionId: string): Promise<void> {
@@ -16,6 +17,8 @@ export const savedQuestionService = {
       console.error('Error saving question:', error)
       throw error
     }
+
+    await reputationService.incrementUserReputation(userId, -1)
   },
 
   async removeSavedQuestion(userId: string, questionId: string): Promise<void> {
@@ -29,6 +32,8 @@ export const savedQuestionService = {
       console.error('Error removing saved question:', error)
       throw error
     }
+
+    await reputationService.incrementUserReputation(userId, 1)
   },
 
   async isSavedQuestion(userId: string, questionId: string): Promise<boolean> {
@@ -147,6 +152,7 @@ export const savedQuestionService = {
               author,
               authorId: question.user_id,
               votes: voteCount,
+              repostCount: question.repost_count || 0,
               answerCount: 0,
               viewCount: question.view_count || 0,
               createdAt: question.created_at,

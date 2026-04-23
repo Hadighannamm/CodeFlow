@@ -1,6 +1,6 @@
 /* QuestionCard Styles */
 .question-card {
-  background-color: var(--color-off-white);
+  background:linear-gradient( #fffcf0 70%, #fff7d0);
   border-radius: 0.5rem;
   border: 1px solid var(--color-gray-200);
   padding: 1rem;
@@ -69,4 +69,84 @@
 .question-card-author {
   font-weight: 600;
   color: var(--color-gray-700);
+}
+
+.question-card-repost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--color-gray-300);
+  background-color: white;
+  color: var(--color-gray-700);
+  border-radius: 9999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.question-card-repost-btn:hover:not(:disabled) {
+  border-color: var(--color-primary-orange);
+  color: var(--color-primary-orange);
+}
+
+.question-card-repost-btn.active {
+  border-color: var(--color-primary-orange);
+  color: var(--color-primary-orange);
+  background-color: var(--color-primary-orange-light);
+}
+
+.question-card-repost-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.question-card-vote-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid var(--color-gray-300);
+  background-color: white;
+  border-radius: 9999px;
+  padding: 0.18rem 0.3rem;
+}
+
+.question-card-vote-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: transparent;
+  border: none;
+  color: var(--color-gray-700);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.question-card-vote-icon-btn:hover:not(:disabled) {
+  background-color: var(--color-gray-100);
+}
+
+.question-card-vote-icon-btn.up.active {
+  color: #16a34a;
+}
+
+.question-card-vote-icon-btn.down.active {
+  color: #dc2626;
+}
+
+.question-card-vote-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.question-card-vote-total {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  min-width: 1.1rem;
+  text-align: center;
 }
