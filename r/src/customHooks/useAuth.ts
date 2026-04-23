@@ -17,6 +17,14 @@ function mapUser(user:{id:string; email?:string | null}|null):AppUser |null{
     }
 }
 
+function mergeUserPreservingRole(nextUser: AppUser | null, previousUser: AppUser | null): AppUser | null {
+    if (!nextUser) return null;
+    if (previousUser?.id === nextUser.id && previousUser.role) {
+        return { ...nextUser, role: previousUser.role };
+    }
+    return nextUser;
+}
+
 type AuthContextType = {
     user: AppUser | null;
     loading: boolean;
@@ -63,12 +71,12 @@ function useAuthLogic(): AuthContextType {
                 setLoading(false)
                 return
             }
-            setUser(mapUser(data.user))
+            setUser((prev) => mergeUserPreservingRole(mapUser(data.user), prev))
             setLoading(false)
         }
         loadUser();
         const {data: {subscription},} = subscribeToAuthChanges((_event,session)=>{
-            setUser(mapUser(session?.user??null));
+            setUser((prev) => mergeUserPreservingRole(mapUser(session?.user??null), prev));
         })
 
         return()=>{
