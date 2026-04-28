@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, Users, FileText, AlertTriangle, Tag, Settings, Activity, Shield } from 'lucide-react'
+import { BarChart3, Users, FileText, Tag, Activity, Shield } from 'lucide-react'
 import { useAuth } from '../customHooks/useAuth'
 import { useToast } from '../customHooks/useToast'
 import { adminService } from '../services/adminService'
@@ -17,8 +17,9 @@ import type { ActivityLog } from '../types/ActivityLog'
 import QuestionsModerationTable from '../components/admin/QuestionsModerationTable'
 import ReportedContentSection from '../components/admin/ReportedContentSection'
 import '../styles/pages/AdminDashboard.css'
+import AnalyticsPanel from '../components/admin/AnalyticsPanel'
 
-type TabType = 'overview' | 'users' | 'content' | 'reports' | 'tags' | 'analytics' | 'settings' | 'logs'
+type TabType = 'overview' | 'users' | 'content' | 'tags' | 'analytics' | 'settings' | 'logs'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -26,9 +27,8 @@ export default function AdminDashboard() {
   const toast = useToast()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [isLoading, setIsLoading] = useState(true)
-  const [stats, setStats] = useState({ totalUsers: 0, totalQuestions: 0, totalAnswers: 0, pendingReports: 0 })
+  const [stats, setStats] = useState({ totalUsers: 0, totalQuestions: 0, totalAnswers: 0 })
   const [users, setUsers] = useState<UserProfile[]>([])
-  const [reports, setReports] = useState<Report[]>([])
   const [settings, setSettings] = useState<AdminSetting[]>([])
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
   const [mostActiveUsers, setMostActiveUsers] = useState<UserProfile[]>([])
@@ -117,14 +117,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const loadReports = async () => {
-    try {
-      const result = await adminService.getReports()
-      if (result.data) setReports(result.data)
-    } catch (err) {
-      toast.error('Failed to load reports')
-    }
-  }
+  
 
   const loadSettings = async () => {
     try {
@@ -314,17 +307,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleReportResolution = async (reportId: string, newStatus: 'resolved' | 'dismissed') => {
-    try {
-      const result = await adminService.updateReportStatus(reportId, newStatus)
-      if (!result.error) {
-        toast.success(`Report marked as ${newStatus}`)
-        loadReports()
-      }
-    } catch (err) {
-      toast.error('Failed to update report')
-    }
-  }
+  
 
   const handleSettingUpdate = async (settingKey: string, newValue: string) => {
     try {
@@ -394,16 +377,7 @@ export default function AdminDashboard() {
           <FileText size={20} />
           Content
         </button>
-        <button
-          className={`admin-tab ${activeTab === 'reports' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('reports')
-            loadReports()
-          }}
-        >
-          <AlertTriangle size={20} />
-          Reports
-        </button>
+        
         <button
           className={`admin-tab ${activeTab === 'tags' ? 'active' : ''}`}
           onClick={() => {
@@ -424,16 +398,7 @@ export default function AdminDashboard() {
           <BarChart3 size={20} />
           Analytics
         </button>
-        <button
-          className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('settings')
-            loadSettings()
-          }}
-        >
-          <Settings size={20} />
-          Settings
-        </button>
+        
         <button
           className={`admin-tab ${activeTab === 'logs' ? 'active' : ''}`}
           onClick={() => {
@@ -485,15 +450,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="admin-stat-card alert">
-                <div className="stat-icon reports-icon">
-                  <AlertTriangle size={32} />
-                </div>
-                <div className="stat-content">
-                  <h3>Pending Reports</h3>
-                  <p className="stat-number">{stats.pendingReports}</p>
-                </div>
-              </div>
+              
             </div>
 
             {/* Recent Activity */}
@@ -608,55 +565,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* REPORTS TAB */}
-        {activeTab === 'reports' && (
-          <div className="admin-section">
-            <h2>Content Reports</h2>
-            <div className="reports-container">
-              {reports.length === 0 ? (
-                <p className="no-data">No reports found</p>
-              ) : (
-                  reports.map((report) => (
-                    <div key={report.id} className="report-card">
-                      <div className="report-header">
-                        <span className="report-type">{report.type}</span>
-                      <span className={`report-status ${report.status}`}>{report.status}</span>
-                    </div>
-                    <div className="report-body">
-                      <p>
-                        <strong>Reason:</strong> {report.reason}
-                      </p>
-                      {report.description && (
-                        <p>
-                          <strong>Description:</strong> {report.description}
-                        </p>
-                      )}
-                      <p className="report-meta">
-                        Reported on {new Date(report.createdAt || new Date()).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {report.status === 'pending' && (
-                      <div className="report-actions">
-                        <button
-                          onClick={() => handleReportResolution(report.id, 'resolved')}
-                          className="btn-success"
-                        >
-                          Resolve
-                        </button>
-                        <button
-                          onClick={() => handleReportResolution(report.id, 'dismissed')}
-                          className="btn-secondary"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+        
 
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
@@ -848,8 +757,8 @@ export default function AdminDashboard() {
 
         {activeTab === 'analytics' && (
           <div className="admin-section">
-            <h2>Analytics</h2>
-            <p>Advanced analytics dashboard coming soon...</p>
+            {/* lazy-load analytics panel */}
+            <AnalyticsPanel />
           </div>
         )}
 

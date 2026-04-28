@@ -141,7 +141,7 @@ export const pollService = {
         return { data: null, error }
       }
 
-      // Increment votes count
+      // Directly increment votes as backup (in case trigger doesn't work)
       const { data: optionData } = await supabase
         .from('poll_options')
         .select('votes')
@@ -155,8 +155,7 @@ export const pollService = {
         .eq('id', optionId)
 
       if (updateError) {
-        console.error('Error updating vote count:', updateError)
-        return { data: null, error: updateError }
+        console.warn('Warning: Could not update vote count:', updateError)
       }
 
       const vote: PollVote = {

@@ -72,6 +72,14 @@ export function useQuestionService() {
       }
     },
 
-
+    async getQuestionsByTag(tagId: string): Promise<Question[]> {
+      try {
+        return await questionService.getQuestionsByTag(tagId)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load questions for this tag'
+        toast.error(message)
+        return []
+      }
+    },
   }
 }
